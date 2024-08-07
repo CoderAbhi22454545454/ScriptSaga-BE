@@ -14,17 +14,17 @@ const AdminDashboard = () => {
     const dispatch = useDispatch();
 
     useEffect(() => {
-        const fetchClasses = async () => {
-            try {
-                const response = await api.get('/class/classes');
-                setClasses(response.data.classes);
-            } catch (error) {
-                console.error('Error fetching classes:', error);
-                toast.error('Failed to fetch classes. Please try again.');
-            }
-        };
-
         if (user && user.role === 'admin') {
+            const fetchClasses = async () => {
+                try {
+                    const response = await api.get('/class/classes');
+                    setClasses(response.data.classes);
+                } catch (error) {
+                    console.error('Error fetching classes:', error);
+                    toast.error('Failed to fetch classes. Please try again.');
+                }
+            };
+
             fetchClasses();
         }
     }, [user]);

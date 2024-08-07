@@ -11,6 +11,4 @@ router.route("/check-auth").get(checkAuth);
 router.get('/:userId', authMiddelware, getUserById);
 
 
-
-
 export default router;

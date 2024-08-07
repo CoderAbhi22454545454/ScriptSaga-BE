@@ -5,6 +5,7 @@ import dotenv from "dotenv"
 import { connectDB } from "./utils/db.js"
 import userRoute from "./route/user.route.js"
 import classRoutes from "./route/class.route.js";
+import githubRoutes from "./route/github.route.js"
 
 dotenv.config()
 
@@ -27,6 +28,9 @@ const port = process.env.PORT || 6900
 app.use("/api/v1/user", userRoute)
 // Use class routes
 app.use('/api/v1/class', classRoutes);
+// Github Routes
+app.use('/api/v1/', githubRoutes );
+
 
 // Error handling middleware 
 app.use((err, req, res, next) => {

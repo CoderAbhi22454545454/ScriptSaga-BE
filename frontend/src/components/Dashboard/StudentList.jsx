@@ -11,7 +11,7 @@ const StudentList = () => {
         const fetchStudents = async () => {
             try {
                 const response = await api.get(`/class/classes/${classId}/students`);
-                setStudents(response.data.students); // Ensure you access the correct property
+                setStudents(response.data.students); 
             } catch (error) {
                 console.error('Error fetching students:', error);
                 toast.error('Failed to fetch students. Please try again.');
