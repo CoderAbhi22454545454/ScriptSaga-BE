@@ -12,6 +12,7 @@ import { setLoading, setUser } from '@/redux/authSlice';
 import store from '@/redux/store';
 import { Loader2 } from 'lucide-react';
 import ThreeDModel from '../threeModel.jsx/ThreeDModel';
+import Eye from '../ui/Eye'
 
 const Login = () => {
     const { register, handleSubmit, formState: { errors } } = useForm();
@@ -63,14 +64,33 @@ const Login = () => {
                                 />
                                 {errors.email && <p>{errors.email.message}</p>}
                             </div>
-                            <div className="grid gap-2">
+
+                            <div className="relative grid gap-2">
                                 <Label htmlFor="password">Password</Label>
                                 <Input
                                     type="password"
                                     {...register('password', { required: 'Password is required' })}
+                                    className="relative w-full px-4 py-2 border border-gray-300 rounded-md pr-10"
+
                                 />
+                                <Eye />
                                 {errors.password && <p>{errors.password.message}</p>}
                             </div>
+                            
+                            {/* this one should run  */}
+                            {/* <div className="relative grid gap-2">  
+                                <Label htmlFor="password">Password</Label>
+     
+                                <Input
+                                    type={passwordVisible ? "text" : "password"}
+                                    {...register("password", { required: "Password is required" })}
+                                    className="relative w-full px-4 py-2 border border-gray-300 rounded-md pr-10"
+                                />
+                                <Eye isVisible={passwordVisible} onClick={togglePasswordVisibility} />
+    
+                                {errors.password && <p>{errors.password.message}</p>}
+                            </div> */}
+
                             {
                                 loading ? <Button className="w-full mt-5"><Loader2 className='mr-2 animate-spin' />Loging...</Button> : <Button type="submit" className="w-full mt-5">
                                     Login
