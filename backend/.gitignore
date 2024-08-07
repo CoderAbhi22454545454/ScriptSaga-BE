@@ -1,0 +1,18 @@
+
+# Node Modules
+node_modules/
+
+
+# Build directories
+build
+
+# Environment variables
+.env
+
+
+# MacOS
+.DS_Store
+
+# Other
+*.bak
+*.tmp
