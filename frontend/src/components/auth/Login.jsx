@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,23 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setLoading, setUser } from '@/redux/authSlice';
 import store from '@/redux/store';
 import { Loader2 } from 'lucide-react';
+import Eye from '../ui/Eye';
 import ThreeDModel from '../threeModel.jsx/ThreeDModel';
 
 const Login = () => {
+    const [passwordVisible, setPasswordVisible] = useState(false);
     const { register, handleSubmit, formState: { errors } } = useForm();
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const { loading } = useSelector(store => store.auth)
+    const { loading } = useSelector(store => store.auth);
+
+    const togglePasswordVisibility = () => {
+        setPasswordVisible(!passwordVisible);
+    };
 
     const onSubmit = async (data) => {
         try {
-            dispatch(setLoading(true))
+            dispatch(setLoading(true));
             const res = await api.post('/user/login', data, {
                 headers: {
                     'Content-Type': 'application/json'
@@ -29,16 +35,15 @@ const Login = () => {
             });
 
             if (res.data.success) {
-                dispatch(setUser(res.data.user))
+                dispatch(setUser(res.data.user));
                 navigate('/');
                 toast.success(res.data.message);
             }
         } catch (error) {
             console.error('Login error:', error.response?.data || error.message);
             toast.error('Login failed. Please check your credentials and try again.');
-        }
-        finally {
-            dispatch(setLoading(false))
+        } finally {
+            dispatch(setLoading(false));
         }
     };
 
@@ -63,21 +68,31 @@ const Login = () => {
                                 />
                                 {errors.email && <p>{errors.email.message}</p>}
                             </div>
-                            <div className="grid gap-2">
+
+                            <div className="relative grid gap-2">  
                                 <Label htmlFor="password">Password</Label>
                                 <Input
-                                    type="password"
-                                    {...register('password', { required: 'Password is required' })}
+                                    type={passwordVisible ? "text" : "password"}
+                                    {...register("password", { required: "Password is required" })}
+                                    className="relative w-full px-4 py-2 border border-gray-300 rounded-md pr-10"
                                 />
+                                
+                                <Eye isVisible={passwordVisible} onClick={togglePasswordVisibility} />
                                 {errors.password && <p>{errors.password.message}</p>}
                             </div>
-                            {
-                                loading ? <Button className="w-full mt-5"><Loader2 className='mr-2 animate-spin' />Loging...</Button> : <Button type="submit" className="w-full mt-5">
+
+                            {loading ? (
+                                <Button className="w-full mt-5">
+                                    <Loader2 className='mr-2 animate-spin' />Loging...
+                                </Button>
+                            ) : (
+                                <Button type="submit" className="w-full mt-5">
                                     Login
                                 </Button>
-                            }
+                            )}
                         </div>
                     </form>
+
                     <div className="mt-4 text-center text-sm">
                         Don't have an account?{" "}
                         <Link to="/register" className="underline">
@@ -86,10 +101,8 @@ const Login = () => {
                     </div>
                 </div>
             </div>
-            <div className="bg-muted lg:block relative">
-                <ThreeDModel />
-            </div>
         </div>
+
     );
 };
 
