@@ -6,7 +6,15 @@ const PublicRoute = () => {
   const user = useSelector((state) => state.auth.user);
 
   if (user) {
-    return <Navigate to="/" />; // Redirect to home or any other protected route
+    switch (user.role) {
+      case "admin":
+        return <Navigate to="/admin" />
+      case "student":
+        return <Navigate to="/student" />
+      default:
+        return <Navigate to="/" />
+    }
+
   }
 
   return <Outlet />;

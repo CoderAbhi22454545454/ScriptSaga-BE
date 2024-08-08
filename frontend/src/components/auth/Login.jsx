@@ -11,7 +11,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setLoading, setUser } from '@/redux/authSlice';
 import store from '@/redux/store';
 import { Loader2 } from 'lucide-react';
-import ThreeDModel from '../threeModel.jsx/ThreeDModel';
+// import ThreeDModel from '../threeModel.jsx/ThreeDModel';
 
 const Login = () => {
     const { register, handleSubmit, formState: { errors } } = useForm();
@@ -29,16 +29,23 @@ const Login = () => {
             });
 
             if (res.data.success) {
-                dispatch(setUser(res.data.user))
-                navigate('/');
+                dispatch(setUser(res.data.user));
                 toast.success(res.data.message);
+
+                if (res.data.user.role === "student") {
+                    navigate('/');
+                } else if (res.data.user.role === "admin") {
+                    navigate('/admin');
+                }
+                return;
             }
+
         } catch (error) {
             console.error('Login error:', error.response?.data || error.message);
             toast.error('Login failed. Please check your credentials and try again.');
         }
         finally {
-            dispatch(setLoading(false))
+            dispatch(setLoading(false));
         }
     };
 
@@ -87,7 +94,7 @@ const Login = () => {
                 </div>
             </div>
             <div className="bg-muted lg:block relative">
-                <ThreeDModel />
+                {/* <ThreeDModel /> */}
             </div>
         </div>
     );
