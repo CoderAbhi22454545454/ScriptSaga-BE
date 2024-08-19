@@ -7,6 +7,8 @@ import AdminDashboard from './components/Dashboard/AdminDashboard';
 import StudentDashboard from './components/Dashboard/StudentDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
+import StudentDetail from './components/Dashboard/Github/StudentDetailGit';
+import StudentDetailGit from './components/Dashboard/Github/StudentDetailGit';
 
 const appRouter = createBrowserRouter([
   {
@@ -35,6 +37,14 @@ const appRouter = createBrowserRouter([
         path: 'class/:classId',
         element: <StudentList />,
       },
+      {
+        path: 'StudentDetail',
+        element: <StudentDetail />,
+      },
+      {
+        path: 'student/:userId',
+        element: <StudentDetailGit />
+      }
     ],
   },
   {

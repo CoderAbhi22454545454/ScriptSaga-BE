@@ -6,6 +6,7 @@ import { connectDB } from "./utils/db.js"
 import userRoute from "./route/user.route.js"
 import classRoutes from "./route/class.route.js";
 import githubRoutes from "./route/github.route.js"
+import leetcodeRoutes from "./route/leetcode.route.js"
 
 dotenv.config()
 
@@ -30,6 +31,10 @@ app.use("/api/v1/user", userRoute)
 app.use('/api/v1/class', classRoutes);
 // Github Routes
 app.use('/api/v1/', githubRoutes );
+// Leetcode Routes
+app.use('/api/v1/' , leetcodeRoutes)
+
+
 
 
 // Error handling middleware 

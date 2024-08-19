@@ -6,10 +6,12 @@ import { useSelector } from "react-redux";
 const AuthRedirect = ({ children }) => {
   const user = useSelector((state) => state.auth.user);
 
-  if(user){
-    return <Navigate to="/" />;
+  if (user.role === "student") {
+    Navigate('/student');
+  } else if (user.role === "admin") {
+    Navigate('/admin');
   }
-    
+
   return children;
 };
 
