@@ -22,24 +22,26 @@ const StudentDetailGit = () => {
     const { userId } = useParams();
     const [student, setStudent] = useState()
     const [classData, setClassData] = useState()
-    const [studentRepos, setStudentRepos] = useState([])
+    // const [studentRepos, setStudentRepos] = useState([])
     const [studentLeetCode, setStudentLeetCode] = useState({})
 
     useEffect(() => {
         const fetchStudentData = async () => {
             try {
 
-                const [studentResponse, studentGithubReposResponse, studentLeetCodeReponse] = await Promise.all([
+                const [studentResponse,
+                    //  studentGithubReposResponse,
+                      studentLeetCodeReponse] = await Promise.all([
                     api.get(`/user/${userId}`), // Fetch student details
-                    api.get(`${userId}/repos/with-commits`), // Fetch repositories and their commits
+                    // api.get(`${userId}/repos/with-commits`), // Fetch repositories and their commits
                     api.get(`lcodeprofile/${userId}/`) // Fetch LeetCode Profile
                 ]);
 
                 const student = studentResponse.data.user;
                 setStudent(student);
 
-                const studentRepos = studentGithubReposResponse.data;
-                setStudentRepos(studentRepos);
+                // const studentRepos = studentGithubReposResponse.data;
+                // setStudentRepos(studentRepos);
 
                 const studentLeetRepos = studentLeetCodeReponse.data;
                 setStudentLeetCode(studentLeetRepos)
@@ -61,7 +63,7 @@ const StudentDetailGit = () => {
 
 
     if (!student) return <h4>Loading....</h4>
-    const totalCommits = studentRepos.reduce((sum, repo) => sum + repo.totalCommits, 0);
+    // const totalCommits = studentRepos.reduce((sum, repo) => sum + repo.totalCommits, 0);
 
 
 
@@ -94,11 +96,11 @@ const StudentDetailGit = () => {
                             <div className="flex gap-4">
                                 <div className="flex-1">
                                     <p className="text-lg font-medium">Total Repositories</p>
-                                    <p className="text-3xl">{studentRepos.length}</p>
+                                    {/* <p className="text-3xl">{studentRepos.length}</p> */}
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-lg font-medium">Total Commits</p>
-                                    <p className="text-3xl">{totalCommits}</p>
+                                    {/* <p className="text-3xl">{totalCommits}</p> */}
                                 </div>
                             </div>
                         </CardContent>
@@ -173,7 +175,7 @@ const StudentDetailGit = () => {
                         <CardHeader>
                             <CardTitle className="text-2xl">Repositories</CardTitle>
                         </CardHeader>
-                        <CardContent className="max-h-[470px] overflow-auto">
+                        {/* <CardContent className="max-h-[470px] overflow-auto">
                             {
                                 studentRepos.length > 0 ?
 
@@ -213,7 +215,7 @@ const StudentDetailGit = () => {
                                     )
 
                             }
-                        </CardContent>
+                        </CardContent> */}
                     </Card>
                 </div>
 
