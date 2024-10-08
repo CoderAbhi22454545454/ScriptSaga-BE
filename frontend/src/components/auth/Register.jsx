@@ -17,6 +17,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setLoading } from '@/redux/authSlice';
 import store from '@/redux/store';
 import { Loader2 } from 'lucide-react';
+import Eye from '../ui/Eye'
 
 const Register = () => {
     const { register, handleSubmit, formState: { errors }, setValue } = useForm();
@@ -71,6 +72,12 @@ const Register = () => {
         finally {
             dispatch(setLoading(false))
         }
+    };
+
+    const [passwordVisible, setPasswordVisible] = useState(false);
+
+    const togglePasswordVisibility = () => {
+        setPasswordVisible(!passwordVisible);
     };
 
     return (
@@ -140,14 +147,25 @@ const Register = () => {
                                     {errors.email && <p>{errors.email.message}</p>}
                                 </div>
 
+
+                            <div className='grid gap-4 grid-cols-2'>
+
+                            <div className="relative grid gap-2">
+                                <Label htmlFor="password">Password</Label>
+                                <div className="relative">
+
                                 <div className="grid gap-2">
                                     <Label htmlFor="password">Password</Label>
                                     <Input
-                                        type="password"
-                                        {...register('password', { required: 'Password is required' })}
+                                    type={passwordVisible ? "text" : "password"}
+                                    {...register('password', { required: 'Password is required' })}
+                                    className="relative w-full px-4 py-2 border border-gray-300 rounded-md pr-10"
                                     />
+                                    <Eye isVisible={passwordVisible} onClick={togglePasswordVisibility} />
+                                    </div>
                                     {errors.password && <p>{errors.password.message}</p>}
                                 </div>
+
                                 <div className="grid gap-2">
                                     <Label htmlFor="classId">Class</Label>
                                     <Select
