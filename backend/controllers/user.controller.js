@@ -2,11 +2,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user.model.js';
 import { Class } from '../models/class.model.js';
+import mongoose from 'mongoose';
 
 // Create a user (admin or student)
 export const createUser = async (req, res) => {
   try {
-    const { firstName, lastName, githubID, email, password, rollNo, classId, role } = req.body;
+    const { firstName, lastName, githubID, leetCodeID, email, password, rollNo, classId, role } = req.body;
 
     if (!email || !password || !role) {
       return res.status(400).json({
@@ -45,6 +46,7 @@ export const createUser = async (req, res) => {
         firstName,
         lastName,
         githubID,
+        leetCodeID,
         email,
         password: hashedPassword,
         rollNo,
@@ -70,7 +72,6 @@ export const createUser = async (req, res) => {
       await User.create({
         firstName,
         lastName,
-        githubID,
         email,
         password: hashedPassword,
         role,
@@ -178,8 +179,15 @@ export const checkAuth = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId;
     const user = await User.findById(userId).select('-password');
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        message: "Invalid user ID format",
+        success: false,
+      });
+    }
 
     if (!user) {
       return res.status(400).json({
@@ -199,3 +207,49 @@ export const getUserById = async (req, res) => {
 
   }
 }
+
+
+export const searchUser = async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query) {
+      return res.status(400).json({
+        message: "Search Query is required",
+        success: false,
+      });
+    }
+
+    // Trim and split the query into individual words
+    const searchWords = query.trim().split(/\s+/);
+
+    // Create a regex for each word
+    const searchRegexes = searchWords.map(word => new RegExp(word, 'i'));
+
+    // Find users that match any combination of the first name, last name, or email
+    const users = await User.find({
+      $or: [
+        { $and: searchRegexes.map(regex => ({ firstName: { $regex: regex } })) },
+        { $and: searchRegexes.map(regex => ({ lastName: { $regex: regex } })) },
+        { $and: searchRegexes.map(regex => ({ email: { $regex: regex } })) },
+      ],
+      role: { $ne: 'admin' }, // Exclude users with the role 'admin'
+    }).select('-password');
+
+    if (users.length === 0) {
+      return res.status(200).json({
+        users: [],
+        message: "No users found",
+        success: true,
+      });
+    }
+
+    return res.status(200).json({
+      users,
+      success: true,
+    });
+  } catch (error) {
+    console.error('Error searching user:', error);
+    res.status(500).json({ message: 'Server error', success: false });
+  }
+};

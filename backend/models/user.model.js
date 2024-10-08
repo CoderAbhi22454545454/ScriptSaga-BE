@@ -3,16 +3,20 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
   firstName: {
     type: String,
-   
+
   },
   lastName: {
     type: String,
-    
+
   },
   githubID: {
     type: String,
     required: true
   },
+  leetCodeID: {
+    type: String
+  }
+  ,
   email: {
     type: String,
     required: true
@@ -23,7 +27,7 @@ const userSchema = new mongoose.Schema({
   },
   rollNo: {
     type: String,
-  
+
   },
   classId: {
     type: mongoose.Schema.Types.ObjectId,

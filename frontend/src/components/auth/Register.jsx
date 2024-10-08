@@ -1,5 +1,3 @@
-// src/components/auth/Register.jsx
-
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
@@ -31,7 +29,6 @@ const Register = () => {
     const { loading } = useSelector(store => store.auth)
 
     useEffect(() => {
-        // Fetch class data when the component mounts
         const fetchClasses = async () => {
             try {
                 const response = await api.get('/class/classes');
@@ -55,7 +52,6 @@ const Register = () => {
                 classId: selectedClass
             };
 
-            // Log the request payload for debugging
             console.log('Submitting form data:', formData);
 
             const res = await api.post('/user/register', formData, {
@@ -128,6 +124,20 @@ const Register = () => {
                                     {errors.githubID && <p>{errors.githubID.message}</p>}
                                 </div>
                                 <div className="grid gap-2">
+                                    <Label htmlFor="githubID">LeetCode Name</Label>
+                                    <Input
+                                        type="text"
+                                        placeholder="CoderAbhi22454545454"
+                                        {...register('leetCodeID', { required: 'Github ID is required' })}
+                                    />
+                                    {errors.leetCodeID && <p>{errors.leetCodeID.message}</p>}
+                                </div>
+
+                            </div>
+
+                            <div className='grid gap-4 grid-cols-2'>
+
+                                <div className="grid gap-2">
                                     <Label htmlFor="email">Email</Label>
                                     <Input
                                         type="email"
@@ -136,13 +146,16 @@ const Register = () => {
                                     />
                                     {errors.email && <p>{errors.email.message}</p>}
                                 </div>
-                            </div>
+
 
                             <div className='grid gap-4 grid-cols-2'>
 
                             <div className="relative grid gap-2">
                                 <Label htmlFor="password">Password</Label>
                                 <div className="relative">
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="password">Password</Label>
                                     <Input
                                     type={passwordVisible ? "text" : "password"}
                                     {...register('password', { required: 'Password is required' })}
@@ -171,19 +184,19 @@ const Register = () => {
                                     </Select>
                                     {errors.classId && <p>{errors.classId.message}</p>}
                                 </div>
-                            </div>
-
-                            <div className='grid gap-4 grid-cols-2'>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="rollNo">Roll No</Label>
-                                    <Input
-                                        type="text"
-                                        placeholder="33"
-                                        {...register('rollNo', { required: 'Roll No is required' })}
-                                    />
-                                    {errors.rollNo && <p>{errors.rollNo.message}</p>}
+                                <div className='grid gap-4 grid-cols-2'>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="rollNo">Roll No</Label>
+                                        <Input
+                                            type="text"
+                                            placeholder="33"
+                                            {...register('rollNo', { required: 'Roll No is required' })}
+                                        />
+                                        {errors.rollNo && <p>{errors.rollNo.message}</p>}
+                                    </div>
                                 </div>
                             </div>
+
                             {
                                 loading ? <Button className="w-full mt-5"><Loader2 className='mr-2 animate-spin' /></Button> : <Button type="submit" className="w-full mt-5">
                                     Register

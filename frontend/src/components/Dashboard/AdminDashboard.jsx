@@ -5,7 +5,7 @@ import ClassList from './ClassList';
 import api from '@/constants/constant';
 import { toast } from "sonner";
 import { Button } from '../ui/button';
-import { logout } from '@/redux/authSlice';
+import { Navbar } from '../shared/Navbar';
 
 const AdminDashboard = () => {
     const [classes, setClasses] = useState([]);
@@ -14,23 +14,23 @@ const AdminDashboard = () => {
     const dispatch = useDispatch();
 
     useEffect(() => {
-        const fetchClasses = async () => {
-            try {
-                const response = await api.get('/class/classes');
-                setClasses(response.data.classes);
-            } catch (error) {
-                console.error('Error fetching classes:', error);
-                toast.error('Failed to fetch classes. Please try again.');
-            }
-        };
-
         if (user && user.role === 'admin') {
+            const fetchClasses = async () => {
+                try {
+                    const response = await api.get('/class/classes');
+                    setClasses(response.data.classes);
+                } catch (error) {
+                    console.error('Error fetching classes:', error);
+                    toast.error('Failed to fetch classes. Please try again.');
+                }
+            };
+
             fetchClasses();
         }
     }, [user]);
 
     const handleClassClick = (classId) => {
-        navigate(`/class/${classId}`);
+        navigate(`/admin/class/${classId}`);
     };
 
 
@@ -38,7 +38,6 @@ const AdminDashboard = () => {
 
     const handelLogout = () => {
         dispatch(logout());
-
     }
 
     if (!user) {
@@ -46,16 +45,17 @@ const AdminDashboard = () => {
     }
 
     return (
-        <div>
-            <h1>Welcome, {user.firstName} {user.lastName}</h1>
-            <button onClick={handelLogout}>Logout</button>
+        <Navbar>
+            <div className=''>
+                <h1 className='text-2xl'>Welcome, Admin </h1>
 
-            {user.role === 'admin' ? (
-                <ClassList classes={classes} onClassClick={handleClassClick} />
-            ) : (
-                <div>You do not have access to view this page.</div>
-            )}
-        </div>
+                {user.role === 'admin' ? (
+                    <ClassList classes={classes} onClassClick={handleClassClick} />
+                ) : (
+                    <div>You do not have access to view this page.</div>
+                )}
+            </div>
+        </Navbar>
     );
 };
 
