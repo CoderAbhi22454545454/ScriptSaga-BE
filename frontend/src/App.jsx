@@ -59,7 +59,7 @@ const appRouter = createBrowserRouter([
   },
   {
     path: '/student',
-    element: <ProtectedRoute   />,
+    element: <ProtectedRoute role="student" />,
     children: [
       {
         path: '',
