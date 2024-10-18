@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  overflow-x: hidden;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -101,4 +105,52 @@
   height: 6px;
   /* border-radius: 50%; */
   background-color: #8884d8;
+}
+
+
+.right-bg{
+  background-image: url('../src/assets/img/bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  position: relative;
+}
+
+.right-bg::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.01);
+}
+
+
+.random{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.01);
+  z-index: 0;
+}
+
+.random h1 {
+  font-size: 300px;
+  font-weight: 900;
+  color: #fff;
+  /* text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); */
+  opacity: 0.4;
+  letter-spacing: 10px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  font-style: italic;
 }

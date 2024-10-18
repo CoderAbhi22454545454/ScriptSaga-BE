@@ -22,9 +22,7 @@ const ClassList = ({ classes, onClassClick }) => {
                 <p className="text-gray-600 dark:text-gray-300">
                   <span className="font-medium">Division:</span> {cls.division}
                 </p>
-                <p className="text-gray-600 dark:text-gray-300">
-                  <span className="font-medium">Students:</span> {cls.studentCount}
-                </p>
+             
               </div>
             </div>
           ))}

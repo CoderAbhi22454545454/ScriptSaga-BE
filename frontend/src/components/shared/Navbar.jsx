@@ -16,6 +16,8 @@ import {
   ShoppingCart,
   LogOut,
   Users2,
+  GraduationCap,
+  School,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -143,32 +145,36 @@ export function Navbar({ children }) {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <aside className="fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex">
-        <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-          <div>
-            <Link
-              to="/"
-              className="flex h-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Home className="h-5" />
-              <span className="ml-2">Dashboard</span>
-            </Link>
-          </div>
-        </nav>
-        <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-          <Tooltip>
-            <TooltipTrigger asChild>
+         <aside className="fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex w-52">
+        <div className="flex h-14 items-center border-b px-4">
+          <Link to="/" className="flex items-center space-x-2">
+          <GraduationCap className="h-6 w-6 text-indigo-600" />
+          <span className="font-bold text-lg">ScripSaga</span>
+          </Link>
+        </div>
+        <nav className="flex-1 overflow-y-auto">
+          <ul className="p-4 space-y-2">
+            <li>
               <Link
-                to="/settings"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+                to="/admin"
+                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
               >
-                <Settings className="h-5 w-5" />
-                <span className="sr-only">Settings</span>
+                <Home className="h-5 w-5" />
+                <span>Dashboard</span>
               </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Settings</TooltipContent>
-          </Tooltip>
+            </li>
+       
+          </ul>
         </nav>
+        <div className="border-t p-4">
+          <Link
+            to="/settings"
+            className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
+          >
+            <Settings className="h-5 w-5" />
+            <span>Settings</span>
+          </Link>
+        </div>
       </aside>
       <div className="flex flex-col sm:gap-4  sm:pl-14 z-0 ">
         <header className="sticky bg-white top-0 z-30 flex h-14 items-center gap-4 border-b px-4 py-4 sm:static sm:h-auto sm:border-0 sm:px-6">
@@ -293,14 +299,14 @@ export function Navbar({ children }) {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            {/* <DropdownMenuContent align="end">
               <DropdownMenuLabel>{user?.name || "User Name"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuItem>Support</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Logout</DropdownMenuItem>
-            </DropdownMenuContent>
+            </DropdownMenuContent> */}
           </DropdownMenu>
           <button onClick={handleLogout} className="flex items-center gap-2">
             <LogOut className="h-5 w-5" />

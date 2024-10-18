@@ -14,6 +14,7 @@ import api from "@/constants/constant";
 import { toast } from "sonner";
 import CalHeatMap from "cal-heatmap";
 import "cal-heatmap/cal-heatmap.css";
+import { Loader2 } from "lucide-react";
 
 import {
   LineChart,
@@ -167,7 +168,13 @@ const StudentDetailGit = () => {
     }
   };
 
-  if (!student) return <h4>Loading....</h4>;
+  if (!student)
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="mr-2 h-10 w-10 animate-spin" />
+        <p>Loading Awesome stuff...</p>
+      </div>
+    );
   const totalCommits = studentRepos.reduce(
     (sum, repo) => sum + (repo.commits ? repo.commits.length : 0),
     0
@@ -176,69 +183,102 @@ const StudentDetailGit = () => {
   return (
     <Navbar>
       <div className="container mx-auto p-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-  <Card>
-    <CardHeader>
-      <CardTitle className="text-2xl flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Student Information
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-2">
-        <p className="text-lg">
-          <span className="font-semibold">Name:</span> {student.firstName || 'No data'} {student.lastName}
-        </p>
-        <p>
-          <span className="font-semibold">Email:</span> {student.email || "No Data"}
-        </p>
-        <p>
-          <span className="font-semibold">Year of Study:</span> {classData?.yearOfStudy || "No class found"}
-        </p>
-        <p>
-          <span className="font-semibold">Branch:</span> {classData?.branch || "No class found"}
-        </p>
-        <p>
-          <span className="font-semibold">Division:</span> {classData?.division || "No class found"}
-        </p>
-      </div>
-      <Badge variant="outline" className="mt-4 bg-green-300 border-0">
-        Student
-      </Badge>
-    </CardContent>
-  </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-user"
+                >
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                Student Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-lg">
+                  <span className="font-semibold">Name:</span>{" "}
+                  {student.firstName || "No data"} {student.lastName}
+                </p>
+                <p>
+                  <span className="font-semibold">Email:</span>{" "}
+                  {student.email || "No Data"}
+                </p>
+                <p>
+                  <span className="font-semibold">Year of Study:</span>{" "}
+                  {classData?.yearOfStudy || "No class found"}
+                </p>
+                <p>
+                  <span className="font-semibold">Branch:</span>{" "}
+                  {classData?.branch || "No class found"}
+                </p>
+                <p>
+                  <span className="font-semibold">Division:</span>{" "}
+                  {classData?.division || "No class found"}
+                </p>
+              </div>
+              <Badge variant="outline" className="mt-4 bg-green-300 border-0">
+                Student
+              </Badge>
+            </CardContent>
+          </Card>
 
-  <Card>
-    <CardHeader>
-      <CardTitle className="text-2xl flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-github"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
-        GitHub Stats
-      </CardTitle>
-      <p className="text-sm text-muted-foreground">All Time Stats</p>
-    </CardHeader>
-    <CardContent>
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-blue-100 dark:bg-blue-900 p-4 rounded-lg">
-          <p className="text-lg font-medium mb-2">Total Repositories</p>
-          <p className="text-3xl font-bold">{studentRepos.length}</p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-github"
+                >
+                  <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                  <path d="M9 18c-4.51 2-5-2-7-2" />
+                </svg>
+                GitHub Stats
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">All Time Stats</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-blue-100 dark:bg-blue-900 p-4 rounded-lg">
+                  <p className="text-lg font-medium mb-2">Total Repositories</p>
+                  <p className="text-3xl font-bold">{studentRepos.length}</p>
+                </div>
+                <div className="bg-green-100 dark:bg-green-900 p-4 rounded-lg">
+                  <p className="text-lg font-medium mb-2">Total Commits</p>
+                  <p className="text-3xl font-bold">{totalCommits || 0}</p>
+                </div>
+                <div className="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg">
+                  <p className="text-lg font-medium mb-2">Total Stars</p>
+                  <p className="text-3xl font-bold">
+                    {studentRepos.reduce(
+                      (sum, repo) => sum + repo.stargazers_count,
+                      0
+                    )}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        <div className="bg-green-100 dark:bg-green-900 p-4 rounded-lg">
-          <p className="text-lg font-medium mb-2">Total Commits</p>
-          <p className="text-3xl font-bold">{totalCommits || 0}</p>
-        </div>
-        <div className="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg">
-          <p className="text-lg font-medium mb-2">Total Stars</p>
-          <p className="text-3xl font-bold">
-            {studentRepos.reduce(
-              (sum, repo) => sum + repo.stargazers_count,
-              0
-            )}
-          </p>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-</div>
 
         <div className="mt-8">
           <Card>
@@ -261,7 +301,7 @@ const StudentDetailGit = () => {
                         Username
                       </p>
                       <p className="text-lg font-bold mt-1">
-                        {studentLeetCode.basicProfile.username ?? "N/A"}
+                        {studentLeetCode.basicProfile.username ?? "No User"}
                       </p>
                     </div>
                     <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
@@ -313,32 +353,39 @@ const StudentDetailGit = () => {
                     <h3 className="text-lg font-semibold mb-3">
                       Problem Solving
                     </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-blue-500 text-white p-4 rounded-lg">
-                        <p className="text-sm font-medium">Total Solved</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {studentLeetCode.completeProfile.solvedProblem || "0"}
-                        </p>
+                    {studentLeetCode.completeProfile &&
+                    studentLeetCode.completeProfile.solvedProblem > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-blue-500 text-white p-4 rounded-lg">
+                          <p className="text-sm font-medium">Total Solved</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {studentLeetCode.completeProfile.solvedProblem}
+                          </p>
+                        </div>
+                        <div className="bg-green-500 text-white p-4 rounded-lg">
+                          <p className="text-sm font-medium">Easy Solved</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {studentLeetCode.completeProfile.easySolved}
+                          </p>
+                        </div>
+                        <div className="bg-yellow-500 text-white p-4 rounded-lg">
+                          <p className="text-sm font-medium">Medium Solved</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {studentLeetCode.completeProfile.mediumSolved}
+                          </p>
+                        </div>
+                        <div className="bg-red-500 text-white p-4 rounded-lg">
+                          <p className="text-sm font-medium">Hard Solved</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {studentLeetCode.completeProfile.hardSolved}
+                          </p>
+                        </div>
                       </div>
-                      <div className="bg-green-500 text-white p-4 rounded-lg">
-                        <p className="text-sm font-medium">Easy Solved</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {studentLeetCode.completeProfile.easySolved || "0"}
-                        </p>
-                      </div>
-                      <div className="bg-yellow-500 text-white p-4 rounded-lg">
-                        <p className="text-sm font-medium">Medium Solved</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {studentLeetCode.completeProfile.mediumSolved || "0"}
-                        </p>
-                      </div>
-                      <div className="bg-red-500 text-white p-4 rounded-lg">
-                        <p className="text-sm font-medium">Hard Solved</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {studentLeetCode.completeProfile.hardSolved || "0"}
-                        </p>
-                      </div>
-                    </div>
+                    ) : (
+                      <p className="text-center text-gray-500">
+                        No LeetCode data available or no problems solved yet.
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -454,15 +501,15 @@ const StudentDetailGit = () => {
         {/* Progress Charts */}
         {/* Tracking Features */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-1 gap-6">
-        <Card className="col-span-2">
-  <CardHeader>
-    <CardTitle className="flex items-center gap-2">
-      <BarChartIcon className="w-5 h-5" />
-      Commit Frequency
-    </CardTitle>
-  </CardHeader>
-  <CardContent>
-    {/* <div className="flex gap-4 mb-4">
+          <Card className="col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChartIcon className="w-5 h-5" />
+                Commit Frequency
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* <div className="flex gap-4 mb-4">
       <input
         type="date"
         value={startDate ? startDate.toISOString().split('T')[0] : ''}
@@ -484,25 +531,25 @@ const StudentDetailGit = () => {
         Apply Filter
       </button>
     </div> */}
-    <div className="h-[450px]">
-      <CommitFrequencyChart data={commitFrequency} />
-    </div>
-  </CardContent>
-</Card>
+              <div className="h-[450px]">
+                <CommitFrequencyChart data={commitFrequency} />
+              </div>
+            </CardContent>
+          </Card>
 
-<Card className="col-span-2">
-  <CardHeader>
-    <CardTitle className="flex items-center gap-2">
-      <PieChart className="w-5 h-5" />
-      Language Usage
-    </CardTitle>
-  </CardHeader>
-  <CardContent>
-    <div className="h-[350px]">
-      <LanguageUsageChart data={languageUsage} />
-    </div>
-  </CardContent>
-</Card>
+          <Card className="col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="w-5 h-5" />
+                Language Usage
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[350px]">
+                <LanguageUsageChart data={languageUsage} />
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="col-span-2">
             <CardHeader>
@@ -553,11 +600,26 @@ const LanguageUsageChart = ({ data }) => {
     .sort((a, b) => b.value - a.value)
     .slice(0, 10); // Limit to top 10 languages
 
-  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F06292', '#AED581', '#7986CB', '#9575CD', '#4DB6AC'];
+  const colors = [
+    "#FF6B6B",
+    "#4ECDC4",
+    "#45B7D1",
+    "#FFA07A",
+    "#98D8C8",
+    "#F06292",
+    "#AED581",
+    "#7986CB",
+    "#9575CD",
+    "#4DB6AC",
+  ];
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={chartData} layout="horizontal" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+      <BarChart
+        data={chartData}
+        layout="horizontal"
+        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+      >
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="name" />
         <YAxis />

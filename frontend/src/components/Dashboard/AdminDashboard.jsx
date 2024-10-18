@@ -41,12 +41,14 @@ const AdminDashboard = () => {
     }
 
     if (!user) {
-        return <div>Loading...</div>;
+        return <div className='flex justify-center items-center h-screen'>
+            <Loader2 className="mr-2 h-10 w-10 animate-spin" />
+        </div>;
     }
 
     return (
         <Navbar>
-            <div className=''>
+            <div className='ps-12'>
                 <h1 className='text-2xl mb-4 font-semibold border-b-2 border-gray-300 pb-2 w-fit'>Welcome, Admin </h1>
 
                 {user.role === 'admin' ? (

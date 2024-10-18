@@ -9,17 +9,16 @@ import { Link } from 'react-router-dom';
 import api from '@/constants/constant';
 import { useDispatch, useSelector } from 'react-redux';
 import { setLoading, setUser } from '@/redux/authSlice';
-import store from '@/redux/store';
 import { Loader2 } from 'lucide-react';
-
 import Eye from '../ui/Eye';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Login = () => {
     const [passwordVisible, setPasswordVisible] = useState(false);
     const { register, handleSubmit, formState: { errors } } = useForm();
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const { loading } = useSelector(store => store.auth);
+    const { loading } = useSelector(state => state.auth);
 
     const togglePasswordVisibility = () => {
         setPasswordVisible(!passwordVisible);
@@ -36,9 +35,6 @@ const Login = () => {
 
             if (res.data.success) {
                 dispatch(setUser(res.data.user));
-              
-                navigate('/');
-
                 toast.success(res.data.message);
 
                 if (res.data.user.role === "student") {
@@ -46,75 +42,82 @@ const Login = () => {
                 } else if (res.data.user.role === "admin") {
                     navigate('/admin');
                 }
-                return;
             }
-
         } catch (error) {
             console.error('Login error:', error.response?.data || error.message);
             toast.error('Login failed. Please check your credentials and try again.');
-        }
-            finally {
+        } finally {
             dispatch(setLoading(false));
         }
     };
 
     return (
-        <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
-            <div className="flex items-center justify-center py-12">
-                <div className="mx-auto grid w-[550px] gap-6">
-                    <div className="grid gap-2 text-center">
-                        <h1 className="text-3xl font-bold">Login</h1>
-                        <p className="text-muted-foreground mb-5">
-                            Enter your email and password to log in.
-                        </p>
+        <div className="min-h-screen bg-gradient-to-br from-blue-200 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 " > 
+            <div className="random">
+                        <h1>ScripSaga</h1>
+                        <h1>ScripSaga</h1>
+                        <h1>ScripSaga</h1>
+
                     </div>
-                    <form onSubmit={handleSubmit(onSubmit)}>
-                        <div className="grid gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    type="email"
-                                    placeholder="example@example.com"
-                                    {...register('email', { required: 'Email is required' })}
-                                />
-                                {errors.email && <p>{errors.email.message}</p>}
-                            </div>
-
-                            <div className="relative grid gap-2">  
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    type={passwordVisible ? "text" : "password"}
-                                    {...register("password", { required: "Password is required" })}
-                                    className="relative w-full px-4 py-2 border border-gray-300 rounded-md pr-10"
-                                />
-                                
-                                <Eye isVisible={passwordVisible} onClick={togglePasswordVisibility} />
-                                {errors.password && <p>{errors.password.message}</p>}
-                            </div>
-
-                            {loading ? (
-                                <Button className="w-full mt-5">
-                                    <Loader2 className='mr-2 animate-spin' />Loging...
-                                </Button>
-                            ) : (
-                                <Button type="submit" className="w-full mt-5">
-                                    Login
-                                </Button>
-                            )}
+            <Card className="w-full max-w-md z-10">
+                <CardHeader className="text-center">
+                    <CardTitle className="text-3xl font-extrabold text-gray-900">Login to Your Account</CardTitle>
+                </CardHeader>
+                <CardContent>
+                
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 z-10">
+                        <div>
+                            <Label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                Email Address
+                            </Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="Enter your email"
+                                {...register('email', { required: 'Email is required' })}
+                                className="mt-1"
+                            />
+                            {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
                         </div>
+
+                        <div>
+                            <Label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                                Password
+                            </Label>
+                            <div className="relative mt-1">
+                                <Input
+                                    id="password"
+                                    type={passwordVisible ? "text" : "password"}
+                                    placeholder="Enter your password"
+                                    {...register("password", { required: "Password is required" })}
+                                    className="pr-10"
+                                />
+                                <Eye isVisible={passwordVisible} onClick={togglePasswordVisibility} />
+                            </div>
+                            {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
+                        </div>
+
+                        <Button type="submit" className="w-full" disabled={loading}>
+                            {loading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Logging in...
+                                </>
+                            ) : (
+                                "Log in"
+                            )}
+                        </Button>
                     </form>
 
-                    <div className="mt-4 text-center text-sm">
+                    <div className="mt-6 text-center text-sm">
                         Don't have an account?{" "}
-                        <Link to="/register" className="underline">
-                            Register
+                        <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+                            Register here
                         </Link>
                     </div>
-                </div>
-            </div>
-
+                </CardContent>
+            </Card>
         </div>
-
     );
 };
 

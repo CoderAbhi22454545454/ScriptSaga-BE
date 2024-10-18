@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/constants/constant';
 import { toast } from "sonner";
 import { Navbar } from '../shared/Navbar';
-import { Table, TableHeader, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Input } from '../ui/input';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 
 const StudentList = () => {
@@ -62,55 +63,87 @@ const StudentList = () => {
 
     return (
         <Navbar>
-            <div>
-                <h2>Students</h2>
-
-                {classData ? (
-                    <div className="mb-4">
-                        <h3 className="text-xl font-semibold">Class Details:</h3>
-                        <p><strong>Class Name:</strong> {classData.className}</p>
-                        <p><strong>Year of Study:</strong> {classData.yearOfStudy}</p>
-                        <p><strong>Branch:</strong> {classData.branch}</p>
-                        <p><strong>Division:</strong> {classData.division}</p>
-                    </div>
-                ) : (
-                    <h3>Loading class details...</h3>
-                )}
-
-                <Input
-                    type="search"
-                    placeholder="Search for User..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="p-3 mb-3 bg-gray-100 "
-                />
-
-                {
-                    filterStudent.length > 0 ?
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableCell>Roll No</TableCell>
-                                    <TableCell>Student Name</TableCell>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filterStudent.map((student) => (
-                                    <TableRow key={student._id} onClick={() => handleStudentClick(student._id)} className="cursor-pointer">
-                                        <TableCell>{student.rollNo}</TableCell>
-                                        <TableCell>{student.firstName} {student.lastName} </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        :
-                        <h3>
-                            No student Found
-                        </h3>
-                }
-
-            </div>
-        </Navbar>
+        <div className="container mx-auto p-6">
+          <h2 className="text-3xl font-bold mb-6">Students</h2>
+      
+          {classData ? (
+            <Card className="mb-6 bg-gray-100">
+              <CardHeader>
+                <CardTitle className='font-medium'>Class Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-row gap-20 text-start">
+                  {/* <div>
+                    <p className="font-semibold">Class Name:</p>
+                    <p>{classData.className}</p>
+                  </div> */}
+                  <div>
+                    <p className="font-medium text-sm text-gray-500 capitalize font-sans ">Year of Study:</p>
+                    <p className='font-medium text-lg capitalize font-sans text-blue-700 '>{classData.yearOfStudy}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-gray-500 capitalize font-sans ">Branch:</p>
+                    <p className='font-medium text-lg capitalize font-sans text-blue-700 '>{classData.branch}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-gray-500 capitalize font-sans ">Division:</p>
+                    <p className='font-medium text-lg capitalize font-sans text-blue-700 '>{classData.division}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="mb-6">
+              <CardContent>
+                <p className="text-center">Loading class details...</p>
+              </CardContent>
+            </Card>
+          )}
+      
+          <div className="mb-6 mt-5 ">
+            <Input
+              type="search"
+              placeholder="Search for Student..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+      
+          {filterStudent.length > 0 ? (
+            <Card className='p-4'>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className='bg-gray-100'>
+                      <TableHead className='font-medium text-sm text-gray-500 capitalize font-sans '  >Roll No</TableHead>
+                      <TableHead>Student Name</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filterStudent.map((student) => (
+                      <TableRow
+                        key={student._id}
+                        onClick={() => handleStudentClick(student._id)}
+                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <TableCell>{student.rollNo}</TableCell>
+                        <TableCell>{student.firstName} {student.lastName}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent>
+                <p className="text-center py-4">No students found</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </Navbar>
     );
 };
 

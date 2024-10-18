@@ -138,7 +138,7 @@ export const loginUser = async (req, res) => {
       httpOnly: true,
       sameSite: 'strict',
     }).json({
-      message: `Welcome back ${responseUser.firstName}`,
+      message: `Welcome back `,
       user: responseUser,
       success: true,
     });

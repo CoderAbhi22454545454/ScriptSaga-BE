@@ -9,6 +9,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import StudentDetail from './components/Dashboard/Github/StudentDetailGit';
 import StudentDetailGit from './components/Dashboard/Github/StudentDetailGit';
+import AllStudentsPage from './components/Dashboard/AllStudentsPage';
+import ClassesPage from './components/Dashboard/ClassesPage';
 
 const appRouter = createBrowserRouter([
   {
@@ -44,12 +46,20 @@ const appRouter = createBrowserRouter([
       {
         path: 'student/:userId',
         element: <StudentDetailGit />
-      }
+      },
+      {
+        path: 'classes',
+        element: <ClassesPage />,
+      },
+      {
+        path: 'students',
+        element: <AllStudentsPage />,
+      },
     ],
   },
   {
     path: '/student',
-    element: <ProtectedRoute role="student" />,
+    element: <ProtectedRoute   />,
     children: [
       {
         path: '',
