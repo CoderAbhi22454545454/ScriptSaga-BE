@@ -3,12 +3,12 @@ import { DateTime } from 'luxon'
 
 const GitHub_BaseURL = "https://api.github.com";
 
-const token = "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"
+const token = "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"
 
 const githubApi = axios.create({
     baseURL: GitHub_BaseURL,
     headers: {
-        'Authorization': `token ${token}`
+        'Authorization': `token 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`
     }
 })
 
@@ -35,8 +35,8 @@ export const getGithubUserRepos = async (githubID) => {
             forks_count: repo.forks_count
         }));
     } catch (error) {
-        console.error('Error fetching GitHub repos:', error);
-        throw error;
+      console.error('Error fetching GitHub repos:', error.response ? error.response.data : error.message);
+      throw error;
     }
 }
 

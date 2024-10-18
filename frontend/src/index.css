@@ -71,3 +71,34 @@
     /* font-family: var(--font-sans), sans-serif;  */
     }
 }
+
+.commit-container {
+  position: relative;
+  padding-left: 20px;
+}
+
+.commit-container::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #8884d8;
+}
+
+.commit-item {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.commit-item::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 8px;
+  width: 20px;
+  height: 6px;
+  /* border-radius: 50%; */
+  background-color: #8884d8;
+}

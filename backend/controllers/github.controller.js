@@ -2,11 +2,12 @@ import { getGithubUserRepos, getGithubRepoCommits } from "../services/github.ser
 import { User } from "../models/user.model.js";
 import mongoose from 'mongoose';
 import axios from 'axios';
+import { GithubData } from '../models/githubData.model.js';
 
 
 const GitHub_BaseURL = "https://api.github.com";
 
-const token = "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"
+const token = "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"
 
 const githubApi = axios.create({
     baseURL: GitHub_BaseURL,
@@ -14,7 +15,6 @@ const githubApi = axios.create({
         'Authorization': `token ${token}`
     }
 })
-
 
 export const getStudentReposWithCommits = async (req, res) => {
     try {
@@ -30,23 +30,32 @@ export const getStudentReposWithCommits = async (req, res) => {
         return res.status(404).json({ message: "User not found or GitHub ID not set", success: false });
       }
   
-      const repos = await getGithubUserRepos(user.githubID);
+      let githubData = await GithubData.findOne({ userId });
   
-      // Fetch commits for each repository
-      const reposWithCommits = await Promise.all(repos.map(async (repo) => {
-        try {
-          console.log("Fetching commits for:", user.githubID, repo.name);
+      if (!githubData || Date.now() - githubData.lastUpdated > 24 * 60 * 60 * 1000) {
+        // Data is missing or older than 24 hours, fetch from GitHub API
+        const repos = await getGithubUserRepos(user.githubID);
+        const reposWithCommits = await Promise.all(repos.map(async (repo) => {
           const commits = await getGithubRepoCommits(user.githubID, repo.name);
           return { ...repo, commits: commits.commits };
-        } catch (error) {
-          console.error(`Error fetching commits for ${repo.name}:`, error);
-          return { ...repo, commits: [] };
-        }
-      }));
+        }));
   
-      res.status(200).json({ repos: reposWithCommits, success: true });
+        if (githubData) {
+          githubData.repos = reposWithCommits;
+          githubData.lastUpdated = Date.now();
+        } else {
+          githubData = new GithubData({
+            userId,
+            githubId: user.githubID,
+            repos: reposWithCommits
+          });
+        }
+        await githubData.save();
+      }
+  
+      res.status(200).json({ repos: githubData.repos, success: true });
     } catch (error) {
-      console.log("Error while fetching student repos with commits: ", error);
+      console.error("Error while fetching student repos with commits: ", error);
       res.status(500).json({ message: "Server Error", success: false });
     }
   };

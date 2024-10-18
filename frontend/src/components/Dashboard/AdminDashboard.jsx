@@ -47,7 +47,7 @@ const AdminDashboard = () => {
     return (
         <Navbar>
             <div className=''>
-                <h1 className='text-2xl'>Welcome, Admin </h1>
+                <h1 className='text-2xl mb-4 font-semibold border-b-2 border-gray-300 pb-2 w-fit'>Welcome, Admin </h1>
 
                 {user.role === 'admin' ? (
                     <ClassList classes={classes} onClassClick={handleClassClick} />

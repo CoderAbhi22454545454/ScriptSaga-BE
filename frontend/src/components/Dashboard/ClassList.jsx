@@ -3,29 +3,33 @@ import { Button } from "../ui/button";
 
 const ClassList = ({ classes, onClassClick }) => {
     return (
-        <div className="py-3">
-            <h2 className="text-2xl pb-5">Classes</h2>
-            {classes.map((cls) => (
-                <div className='grid grid-cols-4' key={cls._id} >
-                    <div key={cls._id} onClick={() => onClassClick(cls._id)} className='cursor-pointer border-solid border-2   rounded-md'>
-                        <div className='flex gap-2 bg-emerald-500 p-3 '>
-                            <h3>Class : </h3>
-                            {cls.yearOfStudy}
-                        </div>
-                        <div className='p-3'>
-                            <h3>Branch </h3>
-                            {cls.branch}
-                        </div>
-                        <div className='p-3'>
-                            <h3>Division </h3>
-                            {cls.division}
-                        </div>
-                        <p>Clas Studnets : {cls.studentCount}</p>
-
-                    </div>
-                </div>
-            ))}
+        <div className="py-6">
+        <h2 className="text-3xl font-bold mb-6">Classes</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+          {classes.map((cls) => (
+            <div
+              key={cls._id}
+              onClick={() => onClassClick(cls._id)}
+              className="cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+            >
+              <div className="bg-blue-800 text-white p-4 rounded-t-lg">
+                <h3 className="text-xl font-medium">Year : {cls.yearOfStudy}</h3>
+              </div>
+              <div className="p-4 space-y-2">
+                <p className="text-gray-600 dark:text-gray-300">
+                  <span className="font-medium">Branch:</span> {cls.branch}
+                </p>
+                <p className="text-gray-600 dark:text-gray-300">
+                  <span className="font-medium">Division:</span> {cls.division}
+                </p>
+                <p className="text-gray-600 dark:text-gray-300">
+                  <span className="font-medium">Students:</span> {cls.studentCount}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
+      </div>
     );
 };
 export default ClassList;
