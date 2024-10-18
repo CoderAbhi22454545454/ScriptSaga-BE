@@ -146,8 +146,8 @@ const Register = () => {
                                     />
                                     {errors.email && <p>{errors.email.message}</p>}
                                 </div>
-
-
+                            </div>
+                        </div>
                             <div className='grid gap-4 grid-cols-2'>
 
                             <div className="relative grid gap-2">
@@ -198,9 +198,13 @@ const Register = () => {
                             </div>
 
                             {
-                                loading ? <Button className="w-full mt-5"><Loader2 className='mr-2 animate-spin' /></Button> : <Button type="submit" className="w-full mt-5">
-                                    Register
-                                </Button>
+                                loading ? (
+                                    <Button className="w-full mt-5"><Loader2 className='mr-2 animate-spin' /></Button>
+                                ) : (
+                                    <Button type="submit" className="w-full mt-5">
+                                        Register
+                                    </Button>
+                                )
                             }
                         </div>
                     </form>
@@ -213,7 +217,7 @@ const Register = () => {
                 </div>
             </div>
             <div className="hidden bg-muted lg:block"></div>
-        </div>
+        </div>      
     );
 };
 

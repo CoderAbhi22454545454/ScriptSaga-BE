@@ -13,7 +13,6 @@ import store from '@/redux/store';
 import { Loader2 } from 'lucide-react';
 
 import Eye from '../ui/Eye';
-import ThreeDModel from '../threeModel.jsx/ThreeDModel';
 
 const Login = () => {
     const [passwordVisible, setPasswordVisible] = useState(false);
@@ -53,7 +52,8 @@ const Login = () => {
         } catch (error) {
             console.error('Login error:', error.response?.data || error.message);
             toast.error('Login failed. Please check your credentials and try again.');
-        finally {
+        }
+            finally {
             dispatch(setLoading(false));
         }
     };

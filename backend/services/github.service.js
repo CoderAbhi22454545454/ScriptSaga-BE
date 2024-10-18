@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 
 const GitHub_BaseURL = "https://api.github.com";
 
-const token = "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"
+const token = "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"
 
 const githubApi = axios.create({
     baseURL: GitHub_BaseURL,
@@ -14,62 +14,62 @@ const githubApi = axios.create({
 
 // Fetch all user repos
 export const getGithubUserRepos = async (githubID) => {
-    let page = 1;
-    let allRepos = [];
-    let hasMore = true;
-
-    while (hasMore) {
+    try {
         const response = await githubApi.get(`/users/${githubID}/repos`, {
             params: {
-                per_page: 100, // Fetch the maximum number of repositories per page
-                page: page
+                per_page: 100,
+                page: 1
             }
         });
-
-        allRepos = allRepos.concat(response.data);
-        if (response.data.length < 100) {
-            hasMore = false;
-        } else {
-            page++;
-        }
+        return response.data.map(repo => ({
+            id: repo.id,
+            name: repo.name,
+            full_name: repo.full_name,
+            description: repo.description,
+            html_url: repo.html_url,
+            created_at: repo.created_at,
+            updated_at: repo.updated_at,
+            pushed_at: repo.pushed_at,
+            language: repo.language,
+            stargazers_count: repo.stargazers_count,
+            forks_count: repo.forks_count
+        }));
+    } catch (error) {
+        console.error('Error fetching GitHub repos:', error);
+        throw error;
     }
-
-    return allRepos;
 }
 
 // Fetch commits for a specific repo
-export const getGithubRepoCommits = async (githubID, repoName, authorUsername) => {
-    let page = 1;
-    let allCommits = [];
-    let hasMore = true;
-
-    // Calculate the date < 2 month ago
-    const sinceDate = DateTime.now().minus({month : 24 }).toISO()
-
-    while (hasMore) {
-        const response = await githubApi.get(`/repos/${githubID}/${repoName}/commits`, {
-            params: {
-                per_page: 100, // Fetch the maximum number of commits per page
-                page: page,
-                author : authorUsername,
-                since : sinceDate
-            }
-        });
-
-        allCommits = allCommits.concat(response.data);
-        if (response.data.length < 100) {
-            hasMore = false;
-        } else {
-            page++;
+export const getGithubRepoCommits = async (githubID, repoName) => {
+    console.log("Fetching commits for:", githubID, repoName);
+  
+    try {
+      const response = await githubApi.get(`/repos/${githubID}/${repoName}/commits`, {
+        params: {
+          per_page: 100,
+          page: 1,
         }
-    }
-
-    return allCommits.map(commit => ({
+      });
+  
+      const commits = response.data.map(commit => ({
         message: commit.commit.message,
         date: commit.commit.author.date,
         url: commit.html_url,
-    }));
-}
+      }));
+  
+      return {
+        commits: commits,
+      };
+    } catch (error) {
+      if (error.response && error.response.status === 409) {
+        console.log(`Repository ${repoName} is empty.`);
+        return { commits: [] };
+      }
+      console.error('Error fetching commits:', error);
+      throw error;
+    }
+  };
 
 export const getGithubUserProfile = async (githubID) => {
     try {

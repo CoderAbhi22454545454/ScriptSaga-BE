@@ -38,6 +38,19 @@ const userSchema = new mongoose.Schema({
     enum: ['student', 'admin'],
     default: 'student'
   },
+  githubRepos: [{
+    id: Number,
+    name: String,
+    full_name: String,
+    description: String,
+    html_url: String,
+    created_at: Date,
+    updated_at: Date,
+    pushed_at: Date,
+    language: String,
+    stargazers_count: Number,
+    forks_count: Number
+}]
 }, { timestamps: true });
 
 export const User = mongoose.model('User', userSchema);

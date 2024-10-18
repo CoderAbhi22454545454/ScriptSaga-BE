@@ -6,7 +6,7 @@ const ClassList = ({ classes, onClassClick }) => {
         <div className="py-3">
             <h2 className="text-2xl pb-5">Classes</h2>
             {classes.map((cls) => (
-                <div className='grid grid-cols-4'>
+                <div className='grid grid-cols-4' key={cls._id} >
                     <div key={cls._id} onClick={() => onClassClick(cls._id)} className='cursor-pointer border-solid border-2   rounded-md'>
                         <div className='flex gap-2 bg-emerald-500 p-3 '>
                             <h3>Class : </h3>
