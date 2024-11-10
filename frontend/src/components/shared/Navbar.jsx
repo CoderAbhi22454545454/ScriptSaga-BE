@@ -145,16 +145,17 @@ export function Navbar({ children }) {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-         <aside className="fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex w-52">
+      <aside className="fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex w-52">
         <div className="flex h-14 items-center border-b px-4">
           <Link to="/" className="flex items-center space-x-2">
-          <GraduationCap className="h-6 w-6 text-indigo-600" />
-          <span className="font-bold text-lg">ScripSaga</span>
+            <GraduationCap className="h-6 w-6 text-indigo-600" />
+            <span className="font-bold text-lg">ScripSaga</span>
           </Link>
         </div>
         <nav className="flex-1 overflow-y-auto">
-          <ul className="p-4 space-y-2">
-            <li>
+          {user.role === "admin" && (
+            <ul className="p-4 space-y-2">
+              <li>
               <Link
                 to="/admin"
                 className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
@@ -162,18 +163,55 @@ export function Navbar({ children }) {
                 <Home className="h-5 w-5" />
                 <span>Dashboard</span>
               </Link>
+              <Link
+                to="/admin/class-management"
+                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
+              >
+                <School className="h-5 w-5" />
+                <span>Classes</span>
+              </Link>
             </li>
-       
+            <li>
+              <Link
+                to="/admin/student-management"
+                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
+              >
+                <Users2 className="h-5 w-5" />
+                <span>Students</span>
+              </Link>
+            </li>
           </ul>
+          )}
+          {user.role === "student" && (
+            <ul className="p-4 space-y-2">
+              <li>
+                <Link to="/student" className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100">
+                  <Home className="h-5 w-5" />
+                  <span>Dashboard</span>
+                </Link>
+              </li>
+            </ul>
+          )}
         </nav>
         <div className="border-t p-4">
-          <Link
-            to="/settings"
+          {user.role === "admin" && (
+            <Link
+              to={`/admin/settings/${user._id}`}
             className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
           >
             <Settings className="h-5 w-5" />
             <span>Settings</span>
-          </Link>
+            </Link>
+          )}
+          {user.role === "student" && (
+            <Link
+              to={`/student/settings/${user._id}`}
+            className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
+          >
+            <Settings className="h-5 w-5" />
+            <span>Settings</span>
+            </Link>
+          )}
         </div>
       </aside>
       <div className="flex flex-col sm:gap-4  sm:pl-14 z-0 ">
@@ -226,8 +264,8 @@ export function Navbar({ children }) {
             </SheetContent>
           </Sheet>
 
-          <div className="relative ml-auto flex-1 md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground bg-gray" />
+            <div className="relative ml-auto flex-1 md:grow-0">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground bg-gray" />
             <Input
               type="search"
               placeholder="Search..."
@@ -238,49 +276,49 @@ export function Navbar({ children }) {
           </div>
 
           {searchTerm.trim().length > 0 && (
- 
-          <div className="absolute top-14 right-32 w-96 bg-white border border-gray-200 mt-1 rounded-lg  max-h-60 overflow-y-auto z-50">
-            {isFetching &&
-              (!searchResults || searchResults.users.length === 0) && (
-                <p>Loading...</p>
+            <div className="absolute top-14 right-32 w-96 bg-white border border-gray-200 mt-1 rounded-lg  max-h-60 overflow-y-auto z-50">
+              {isFetching &&
+                (!searchResults || searchResults.users.length === 0) && (
+                  <p>Loading...</p>
+                )}
+
+              {isSuccess && searchResults && searchResults.users.length > 0 && (
+                <>
+                  {searchResults.users.map((user) => (
+                    <div
+                      key={user._id}
+                      onClick={() => handelStudentClick(user._id)}
+                      className="p-2 hover:bg-gray-100"
+                    >
+                      <p>
+                        {user.firstName} {user.lastName}
+                      </p>
+                    </div>
+                  ))}
+                </>
               )}
 
-            {isSuccess && searchResults && searchResults.users.length > 0 && (
-              <>
-                {searchResults.users.map((user) => (
-                  <div
-                    key={user._id}
-                    onClick={() => handelStudentClick(user._id)}
-                    className="p-2 hover:bg-gray-100"
-                  >
-                    <p>
-                      {user.firstName} {user.lastName}
-                    </p>
-                  </div>
-                ))}
-              </>
-            )}
+              {isSuccess && searchResults && (
+                <p
+                  className={`p-2 ${
+                    searchResults.users.length === 0 &&
+                    searchTerm.trim().length >= 1
+                      ? "block"
+                      : "hidden"
+                  }`}
+                >
+                  No users found
+                </p>
+              )}
 
-            {isSuccess && searchResults && (
-              <p
-                className={`p-2 ${
-                  searchResults.users.length === 0 &&
-                  searchTerm.trim().length >= 1
-                    ? "block"
-                    : "hidden"
-                }`}
-              >
-                No users found
-              </p>
-            )}
-
-            {isError && (
-              <div className="absolute top-14 right-0 w-96 bg-white border border-gray-200 mt-1 rounded-lg shadow-lg z-50 p-4 text-center">
-                <p>Something went wrong. Please try again.</p>
-              </div>
-            )}
-          </div>
+              {isError && (
+                <div className="absolute top-14 right-0 w-96 bg-white border border-gray-200 mt-1 rounded-lg shadow-lg z-50 p-4 text-center">
+                  <p>Something went wrong. Please try again.</p>
+                </div>
+              )}
+            </div>
           )}
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -313,7 +351,7 @@ export function Navbar({ children }) {
             <span>Logout</span>
           </button>
         </header>
-        <main className="p-4 pl-28 bg-transparent">{children}</main>
+        <main className="p-4 pl-40 bg-transparent">{children}</main>
       </div>
     </div>
   );

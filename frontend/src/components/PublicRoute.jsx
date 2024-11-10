@@ -14,7 +14,6 @@ const PublicRoute = () => {
       default:
         return <Navigate to="/" />
     }
-
   }
 
   return <Outlet />;

@@ -6,6 +6,7 @@ import api from '@/constants/constant';
 import { toast } from "sonner";
 import { Button } from '../ui/button';
 import { Navbar } from '../shared/Navbar';
+import StudentProgressMetrics from './StudentProgressMetrics';
 
 const AdminDashboard = () => {
     const [classes, setClasses] = useState([]);
@@ -52,7 +53,10 @@ const AdminDashboard = () => {
                 <h1 className='text-2xl mb-4 font-semibold border-b-2 border-gray-300 pb-2 w-fit'>Welcome, Admin </h1>
 
                 {user.role === 'admin' ? (
-                    <ClassList classes={classes} onClassClick={handleClassClick} />
+                    <>
+                        <ClassList classes={classes} onClassClick={handleClassClick} />
+                        <StudentProgressMetrics />
+                    </>
                 ) : (
                     <div>You do not have access to view this page.</div>
                 )}

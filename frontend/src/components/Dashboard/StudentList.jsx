@@ -2,19 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/constants/constant';
 import { toast } from "sonner";
-import { Navbar } from '../shared/Navbar';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Input } from '../ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
+import { Navbar } from '@/components/shared/Navbar';
 
 
 const StudentList = () => {
     const { classId } = useParams();
     const [students, setStudents] = useState([]);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
-    const [classData, setClassData] = useState(null)
+    const [classData, setClassData] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-
+    const [error, setError] = useState(null);
 
     const filterStudent = students.filter((student) => {
         const searchTermLower = searchQuery.toLowerCase()
@@ -34,36 +36,70 @@ const StudentList = () => {
         return rollNoA - rollNoB
     })
 
-
     useEffect(() => {
         const fetchStudents = async () => {
             try {
+                setLoading(true);
+                setError(null);
+                
                 // Fetch Class
                 const classResponse = await api.get(`/class/${classId}`);
-                if (classResponse.data.success) {
-                    setClassData(classResponse.data.classRoom);
-                } else {
-                    throw new Error('Failed to fetch class data');
+                console.log('Class Response:', classResponse.data);
+                
+                if (!classResponse.data.success) {
+                    throw new Error(classResponse.data.message || 'Failed to fetch class data');
                 }
+                setClassData(classResponse.data.classRoom);
 
                 // Fetch Students
-                const response = await api.get(`/class/classes/${classId}/students`);
-                setStudents(response.data.students);
+                const studentsResponse = await api.get(`/class/classes/${classId}/students`);
+                console.log('Students Response:', studentsResponse.data);
+                
+                if (!studentsResponse.data.success) {
+                    throw new Error('Failed to fetch students data');
+                }
+                setStudents(studentsResponse.data.students);
             } catch (error) {
-                console.error('Error fetching students:', error);
+                console.error('Error fetching data:', error);
+                setError(error.message);
+                toast.error(error.message || 'Failed to fetch data');
+            } finally {
+                setLoading(false);
             }
         };
 
-        fetchStudents();
+        if (classId) {
+            fetchStudents();
+        }
     }, [classId]);
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-[calc(100vh-4rem)]">
+                <Loader2 className="mr-2 h-10 w-10 animate-spin" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="container mx-auto p-6">
+                <Card>
+                    <CardContent>
+                        <p className="text-center text-red-500 py-4">{error}</p>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     const handleStudentClick = (studentId) => {
         navigate(`/admin/student/${studentId}`);
     };
 
     return (
-        <Navbar>
-        <div className="container mx-auto p-6">
+        <Navbar> 
+  <div className="">
           <h2 className="text-3xl font-bold mb-6">Students</h2>
       
           {classData ? (
@@ -143,7 +179,8 @@ const StudentList = () => {
             </Card>
           )}
         </div>
-      </Navbar>
+        </Navbar>
+      
     );
 };
 

@@ -56,16 +56,19 @@ const StudentDetailGit = () => {
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
-        const [studentResponse, studentLeetCodeResponse] = await Promise.all([
-          api.get(`/user/${userId}`),
-          api.get(`lcodeprofile/${userId}/`),
-        ]);
-
+        const studentResponse = await api.get(`/user/${userId}`);
         const student = studentResponse.data.user;
         setStudent(student);
 
-        const studentLeetRepos = studentLeetCodeResponse.data;
-        setStudentLeetCode(studentLeetRepos);
+        if (student.leetCodeID) {
+          try {
+            const studentLeetCodeResponse = await api.get(`lcodeprofile/${userId}/`);
+            setStudentLeetCode(studentLeetCodeResponse.data);
+          } catch (error) {
+            console.error("Error fetching LeetCode data:", error);
+            setStudentLeetCode(null);
+          }
+        }
 
         if (student.classId) {
           const classResponse = await api.get("/class/classes");
@@ -76,7 +79,6 @@ const StudentDetailGit = () => {
           setClassData(studentClass);
         }
 
-        // Fetch initial repositories
         fetchRepositories();
       } catch (error) {
         console.error("Error fetching student details:", error);
@@ -187,6 +189,7 @@ const StudentDetailGit = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
+
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -203,6 +206,10 @@ const StudentDetailGit = () => {
                   <circle cx="12" cy="7" r="4" />
                 </svg>
                 Student Information
+
+                <Badge variant="outline" className="ml-auto bg-green-300 border-0">
+                Student
+              </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -217,20 +224,18 @@ const StudentDetailGit = () => {
                 </p>
                 <p>
                   <span className="font-semibold">Year of Study:</span>{" "}
-                  {classData?.yearOfStudy || "No class found"}
+                  {student.classId.yearOfStudy || "No class found"}
                 </p>
                 <p>
                   <span className="font-semibold">Branch:</span>{" "}
-                  {classData?.branch || "No class found"}
+                  {student.classId.branch || "No class found"}
                 </p>
                 <p>
                   <span className="font-semibold">Division:</span>{" "}
-                  {classData?.division || "No class found"}
+                  {student.classId.division || "No class found"}
                 </p>
               </div>
-              <Badge variant="outline" className="mt-4 bg-green-300 border-0">
-                Student
-              </Badge>
+      
             </CardContent>
           </Card>
 
@@ -284,113 +289,78 @@ const StudentDetailGit = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
-                <img
-                  src="https://cdn.iconscout.com/icon/free/png-512/free-leetcode-logo-icon-download-in-svg-png-gif-file-formats--technology-social-media-vol-4-pack-logos-icons-2944960.png"
-                  alt="LeetCode"
-                  className="w-8 h-8"
-                />
-                LeetCode Stats
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-code"
+                >
+                  <polyline points="16 18 22 12 16 6" />
+                  <polyline points="8 6 2 12 8 18" />
+                </svg>
+                LeetCode Statistics
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {studentLeetCode ? (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Username
-                      </p>
-                      <p className="text-lg font-bold mt-1">
-                        {studentLeetCode.basicProfile.username ?? "No User"}
-                      </p>
-                    </div>
-                    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Ranking
-                      </p>
-                      <p className="text-lg font-bold mt-1">
-                        {studentLeetCode.basicProfile.ranking ?? "N/A"}
-                      </p>
-                    </div>
-                    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Contests Attended
-                      </p>
-                      <p className="text-lg font-bold mt-1">
-                        {studentLeetCode.contests.contestAttend ?? "0"}
-                      </p>
-                    </div>
-                    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Badges Count
-                      </p>
-                      <p className="text-lg font-bold mt-1">
-                        {studentLeetCode.badges.badgesCount ?? "0"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-3">Badges</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      {studentLeetCode.badges.badges.map((badge, key) => (
-                        <div
-                          key={key}
-                          className="flex items-center space-x-2 bg-white dark:bg-gray-700 p-2 rounded-md"
-                        >
-                          <img
-                            src={badge.icon}
-                            alt={badge.displayName}
-                            className="w-8 h-8"
-                          />
-                          <span className="text-sm">{badge.displayName}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-3">
-                      Problem Solving
-                    </h3>
-                    {studentLeetCode.completeProfile &&
-                    studentLeetCode.completeProfile.solvedProblem > 0 ? (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-blue-500 text-white p-4 rounded-lg">
-                          <p className="text-sm font-medium">Total Solved</p>
-                          <p className="text-2xl font-bold mt-1">
-                            {studentLeetCode.completeProfile.solvedProblem}
-                          </p>
-                        </div>
-                        <div className="bg-green-500 text-white p-4 rounded-lg">
-                          <p className="text-sm font-medium">Easy Solved</p>
-                          <p className="text-2xl font-bold mt-1">
-                            {studentLeetCode.completeProfile.easySolved}
-                          </p>
-                        </div>
-                        <div className="bg-yellow-500 text-white p-4 rounded-lg">
-                          <p className="text-sm font-medium">Medium Solved</p>
-                          <p className="text-2xl font-bold mt-1">
-                            {studentLeetCode.completeProfile.mediumSolved}
-                          </p>
-                        </div>
-                        <div className="bg-red-500 text-white p-4 rounded-lg">
-                          <p className="text-sm font-medium">Hard Solved</p>
-                          <p className="text-2xl font-bold mt-1">
-                            {studentLeetCode.completeProfile.hardSolved}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-center text-gray-500">
-                        No LeetCode data available or no problems solved yet.
-                      </p>
-                    )}
-                  </div>
+              {student?.leetCodeID ? (
+                studentLeetCode?.completeProfile ? (
+                  <>
+                       <div className="user-profile mb-10 mt-4 bg-gray-100 p-4 rounded-lg">
+                  <h1 className="text-md font-semibold">Basic Profile</h1>
+                  <p className="text-sm mt-4">
+                    <span className="font-semibold">Username:</span>{" "}
+                    {studentLeetCode.basicProfile.username}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    <span className="font-medium">Rank:</span>{" "}
+                    {studentLeetCode.basicProfile.ranking}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    <span className="font-medium">Contribution:</span>{" "}
+                    {studentLeetCode.basicProfile.reputation}
+                  </p>
                 </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-500 text-white p-4 rounded-lg">
+                      <p className="text-sm font-medium">Total Solved</p>
+                      <p className="text-2xl font-bold mt-1">
+                        {studentLeetCode.completeProfile.solvedProblem || 0}
+                      </p>
+                    </div>
+                    <div className="bg-green-500 text-white p-4 rounded-lg">
+                      <p className="text-sm font-medium">Easy Solved</p>
+                      <p className="text-2xl font-bold mt-1">
+                        {studentLeetCode.completeProfile.easySolved || 0}
+                      </p>
+                    </div>
+                    <div className="bg-yellow-500 text-white p-4 rounded-lg">
+                      <p className="text-sm font-medium">Medium Solved</p>
+                      <p className="text-2xl font-bold mt-1">
+                        {studentLeetCode.completeProfile.mediumSolved || 0}
+                      </p>
+                    </div>
+                    <div className="bg-red-500 text-white p-4 rounded-lg">
+                      <p className="text-sm font-medium">Hard Solved</p>
+                      <p className="text-2xl font-bold mt-1">
+                        {studentLeetCode.completeProfile.hardSolved || 0}
+                      </p>
+                    </div>
+                  </div>
+                   </>
+             
+                ) : (
+                  <p className="text-center text-gray-500">No LeetCode data available</p>
+                )
               ) : (
                 <p className="text-center text-gray-500">
-                  No LeetCode Data Available
+                  User has not linked their LeetCode account
                 </p>
               )}
             </CardContent>
@@ -422,7 +392,7 @@ const StudentDetailGit = () => {
                 Repositories
               </CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[470px] overflow-auto">
+            <CardContent className="max-h-[570px] overflow-auto">
               {studentRepos.length > 0 ? (
                 studentRepos.map((repo, index) => (
                   <Accordion
@@ -460,24 +430,33 @@ const StudentDetailGit = () => {
                               <div
                                 key={commitIndex}
                                 className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm"
+                                style={{
+                                  '&:after': {
+                                    content: '""',
+                                    display: 'block',
+                                    height: '1px',
+                                    backgroundColor: 'gray',
+                                    margin: '10px 0',
+                                  },
+                                }}
                               >
-                                <p className="font-medium text-lg mb-2">
-                                  {commit.message}
-                                </p>
-                                <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
-                                  <span>
-                                    {new Date(commit.date).toLocaleDateString()}
-                                  </span>
-                                  <a
-                                    href={commit.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-500 hover:underline"
-                                  >
-                                    View on GitHub
-                                  </a>
+                                  <p className="font-medium text-lg mb-2">
+                                    {commit.message}
+                                  </p>
+                                  <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+                                    <span>
+                                      {new Date(commit.date).toLocaleDateString()}
+                                    </span>
+                                    <a
+                                      href={commit.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-500 hover:underline"
+                                    >
+                                      View on GitHub
+                                    </a>
+                                  </div>
                                 </div>
-                              </div>
                             ))}
                           </div>
                         ) : (

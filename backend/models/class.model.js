@@ -17,7 +17,7 @@ const classSchema = new mongoose.Schema({
     },
     division: {
         type: String,
-        enum: ["A", "B"]
+        required: true
     }
 }, { timestamps: true });
 

@@ -11,6 +11,9 @@ import StudentDetail from './components/Dashboard/Github/StudentDetailGit';
 import StudentDetailGit from './components/Dashboard/Github/StudentDetailGit';
 import AllStudentsPage from './components/Dashboard/AllStudentsPage';
 import ClassesPage from './components/Dashboard/ClassesPage';
+import ClassManagement from './components/Dashboard/ClassManagement';
+import StudentManagement from './components/Dashboard/StudentManagement';
+import Settings from './components/Dashboard/Settings';
 
 const appRouter = createBrowserRouter([
   {
@@ -18,6 +21,10 @@ const appRouter = createBrowserRouter([
     element: <PublicRoute />,
     children: [
       {
+        path: '',  // Add this empty path for root route
+        element: <Login />
+      },
+      ,{
         path: 'login',
         element: <Login />,
       },
@@ -55,6 +62,18 @@ const appRouter = createBrowserRouter([
         path: 'students',
         element: <AllStudentsPage />,
       },
+      {
+        path: 'class-management',
+        element: <ClassManagement />,
+      },
+      {
+        path: 'student-management',
+        element: <StudentManagement />,
+      },
+      {
+        path: 'settings/:id',
+        element: <Settings />,
+      },
     ],
   },
   {
@@ -64,6 +83,10 @@ const appRouter = createBrowserRouter([
       {
         path: '',
         element: <StudentDashboard />,
+      },
+      {
+        path: 'settings/:id', 
+        element: <Settings />,
       },
     ],
   },
