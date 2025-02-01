@@ -7,7 +7,7 @@ import { GithubData } from '../models/githubData.model.js';
 
 const GitHub_BaseURL = "https://api.github.com";
 
-const token = "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"
+const token = "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"
 
 const githubApi = axios.create({
     baseURL: GitHub_BaseURL,

@@ -56,12 +56,17 @@ const StudentList = () => {
                 console.log('Students Response:', studentsResponse.data);
                 
                 if (!studentsResponse.data.success) {
-                    throw new Error('Failed to fetch students data');
+                    throw new Error(studentsResponse.data.message || 'Failed to fetch students data');
                 }
+                
+                if (!Array.isArray(studentsResponse.data.students)) {
+                    throw new Error('Invalid students data received');
+                }
+                
                 setStudents(studentsResponse.data.students);
             } catch (error) {
                 console.error('Error fetching data:', error);
-                setError(error.message);
+                setError(error.message || 'An error occurred while fetching data');
                 toast.error(error.message || 'Failed to fetch data');
             } finally {
                 setLoading(false);

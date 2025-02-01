@@ -3,12 +3,12 @@ import { DateTime } from 'luxon'
 
 const GitHub_BaseURL = "https://api.github.com";
 
-const token = "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"
+const token = "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"
 
 const githubApi = axios.create({
     baseURL: GitHub_BaseURL,
     headers: {
-        'Authorization': `token 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`
+        'Authorization': `token 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`
     }
 })
 
