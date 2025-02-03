@@ -13,10 +13,10 @@ backend/node_modules/
 frontend/build/
 backend/build/
 
-#  Environment variables
-# .env
-# frontend/.env
-# backend/.env
+ Environment variables
+.env
+frontend/.env
+backend/.env
 
 # MacOS
 .DS_Store

@@ -3,11 +3,13 @@ import { User } from "../models/user.model.js";
 import mongoose from 'mongoose';
 import axios from 'axios';
 import { GithubData } from '../models/githubData.model.js';
+import dotenv from 'dotenv';
 
+dotenv.config();
 
 const GitHub_BaseURL = "https://api.github.com";
 
-const token = "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"
+const token = process.env.GITHUB_TOKEN;
 
 const githubApi = axios.create({
     baseURL: GitHub_BaseURL,
