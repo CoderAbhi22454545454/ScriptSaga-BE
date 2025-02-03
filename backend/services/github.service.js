@@ -1,44 +1,49 @@
+import { memoryCache } from '../utils/memoryCache.js';
+import rateLimit from 'express-rate-limit';
 import axios from 'axios'
 import { DateTime } from 'luxon'
 
+// Cache TTL in seconds (24 hours)
+const CACHE_TTL = 24 * 60 * 60;
+
+// Rate limiter for GitHub API
+export const githubRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5000, // GitHub API limit
+  message: 'Too many requests from this IP, please try again later.'
+});
+
+
 const GitHub_BaseURL = "https://api.github.com";
 
-const token = "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"
+const token = process.env.GITHUB_TOKEN;
 
 const githubApi = axios.create({
     baseURL: GitHub_BaseURL,
     headers: {
-        'Authorization': `token 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`
+        'Authorization': `token ${token}`
     }
 })
 
 // Fetch all user repos
 export const getGithubUserRepos = async (githubID) => {
-    try {
-        const response = await githubApi.get(`/users/${githubID}/repos`, {
-            params: {
-                per_page: 100,
-                page: 1
-            }
-        });
-        return response.data.map(repo => ({
-            id: repo.id,
-            name: repo.name,
-            full_name: repo.full_name,
-            description: repo.description,
-            html_url: repo.html_url,
-            created_at: repo.created_at,
-            updated_at: repo.updated_at,
-            pushed_at: repo.pushed_at,
-            language: repo.language,
-            stargazers_count: repo.stargazers_count,
-            forks_count: repo.forks_count
-        }));
-    } catch (error) {
-      console.error('Error fetching GitHub repos:', error.response ? error.response.data : error.message);
-      throw error;
+  try {
+    const cacheKey = `github:repos:${githubID}`;
+    const cachedData = memoryCache.get(cacheKey);
+    
+    if (cachedData) {
+      return cachedData;
     }
-}
+
+    const repos = await githubApi.get(`/users/${githubID}/repos`);
+    memoryCache.set(cacheKey, repos.data, CACHE_TTL);
+    
+    return repos.data;
+  } catch (error) {
+    console.error('GitHub API Error:', error);
+    throw new Error('Failed to fetch GitHub repositories');
+  }
+};
 
 // Fetch commits for a specific repo
 export const getGithubRepoCommits = async (githubID, repoName) => {

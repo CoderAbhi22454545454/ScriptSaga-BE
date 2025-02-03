@@ -34,6 +34,6 @@ router.put('/update-profile/:id', updateProfile);
 router.get('/search', authMiddelware, searchUser);
 
 // Parameter routes should come last
-router.get('/:userId', authMiddelware, getUserById);
+router.get('/:userId',  getUserById);
 
 export default router;

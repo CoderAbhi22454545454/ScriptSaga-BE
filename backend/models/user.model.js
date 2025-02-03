@@ -3,40 +3,42 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
   firstName: {
     type: String,
-
+    required: true
   },
   lastName: {
     type: String,
-
-  },
-  githubID: {
-    type: String,
     required: true
   },
-  leetCodeID: {
-    type: String
-  }
-  ,
   email: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
   password: {
     type: String,
     required: true
   },
-  rollNo: {
+  role: {
     type: String,
-
+    enum: ['admin', 'student'],
+    default: 'student'
+  },
+  rollNo: {
+    type: String
   },
   classId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Class',
+    ref: 'Class'
   },
-  role: {
-    type: String,
-    enum: ['student', 'admin'],
-    default: 'student'
+  githubID: String,
+  leetCodeID: String,
+  githubData: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GithubData'
+  },
+  leetcodeData: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'LeetcodeData'
   },
   githubRepos: [{
     id: Number,
@@ -53,4 +55,5 @@ const userSchema = new mongoose.Schema({
 }]
 }, { timestamps: true });
 
+userSchema.index({ rollNo: 1, classId: 1 }, { unique: true });
 export const User = mongoose.model('User', userSchema);

@@ -7,6 +7,8 @@ import { Input } from '../ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { Navbar } from '@/components/shared/Navbar';
+import { Button } from '@/components/ui/button';
+import { Download } from "lucide-react";
 
 
 const StudentList = () => {
@@ -37,46 +39,67 @@ const StudentList = () => {
     })
 
     useEffect(() => {
-        const fetchStudents = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                
-                // Fetch Class
-                const classResponse = await api.get(`/class/${classId}`);
-                console.log('Class Response:', classResponse.data);
-                
-                if (!classResponse.data.success) {
-                    throw new Error(classResponse.data.message || 'Failed to fetch class data');
-                }
-                setClassData(classResponse.data.classRoom);
-
-                // Fetch Students
-                const studentsResponse = await api.get(`/class/classes/${classId}/students`);
-                console.log('Students Response:', studentsResponse.data);
-                
-                if (!studentsResponse.data.success) {
-                    throw new Error(studentsResponse.data.message || 'Failed to fetch students data');
-                }
-                
-                if (!Array.isArray(studentsResponse.data.students)) {
-                    throw new Error('Invalid students data received');
-                }
-                
-                setStudents(studentsResponse.data.students);
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                setError(error.message || 'An error occurred while fetching data');
-                toast.error(error.message || 'Failed to fetch data');
-            } finally {
-                setLoading(false);
+      const fetchStudents = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            // Fetch Class
+            const classResponse = await api.get(`/class/${classId}`);
+            
+            if (!classResponse.data.success) {
+                throw new Error(classResponse.data.message || 'Failed to fetch class data');
             }
-        };
-
+            setClassData(classResponse.data.classRoom);
+    
+            // Fetch Students
+            const studentsResponse = await api.get(`/class/classes/${classId}/students`);
+            
+            if (!studentsResponse.data.success) {
+                throw new Error(studentsResponse.data.message || 'Failed to fetch students data');
+            }
+            
+            if (!Array.isArray(studentsResponse.data.students)) {
+                throw new Error('Invalid students data received');
+            }
+            
+            setStudents(studentsResponse.data.students);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'An error occurred while fetching data';
+            setError(errorMessage);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
         if (classId) {
             fetchStudents();
         }
     }, [classId]);
+
+    const handleDownload = async () => {
+      try {
+        const response = await api.get(`/class/${classId}/excel`, {
+          responseType: 'blob'
+        });
+        
+        const fileName = `Class_${classData.yearOfStudy}_${classData.division}`;
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${fileName}.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('Excel file downloaded successfully');
+      } catch (error) {
+        console.error('Download error:', error);
+        toast.error('Failed to download excel file');
+      }
+    };
 
     if (loading) {
         return (
@@ -107,6 +130,7 @@ const StudentList = () => {
   <div className="">
           <h2 className="text-3xl font-bold mb-6">Students</h2>
       
+      
           {classData ? (
             <Card className="mb-6 bg-gray-100">
               <CardHeader>
@@ -129,6 +153,16 @@ const StudentList = () => {
                   <div>
                     <p className="font-medium text-sm text-gray-500 capitalize font-sans ">Division:</p>
                     <p className='font-medium text-lg capitalize font-sans text-blue-700 '>{classData.division}</p>
+                  </div>
+                  <div>
+                    <Button
+                      onClick={handleDownload}
+                      
+                      className="flex items-center gap-2 bg-blue-700 text-white"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Excel
+                    </Button>
                   </div>
                 </div>
               </CardContent>

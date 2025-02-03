@@ -7,8 +7,8 @@ import AdminDashboard from './components/Dashboard/AdminDashboard';
 import StudentDashboard from './components/Dashboard/StudentDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
-import StudentDetail from './components/Dashboard/Github/StudentDetailGit';
-import StudentDetailGit from './components/Dashboard/Github/StudentDetailGit';
+import StudentDetail from './components/Dashboard/Github/studentMetrics/StudentDetailGit';
+import StudentDetailGit from './components/Dashboard/Github/studentMetrics/StudentDetailGit';
 import AllStudentsPage from './components/Dashboard/AllStudentsPage';
 import ClassesPage from './components/Dashboard/ClassesPage';
 import ClassManagement from './components/Dashboard/ClassManagement';
@@ -89,6 +89,10 @@ const appRouter = createBrowserRouter([
         element: <Settings />,
       },
     ],
+  },
+  {
+    path: '/dashboard/:id?',
+    element: <StudentDashboard />,
   },
 ]);
 

@@ -5,7 +5,8 @@ import {
     updateClass, 
     deleteClass,
     getStudentByClass,
-    getAllClasses
+    getAllClasses,
+    downloadClassData
 } from '../controllers/class.controller.js';
 import authMiddleware from '../middelwares/auth.js';
 const router = express.Router();
@@ -17,7 +18,9 @@ router.get('/:classId', getClassById);
 router.put('/:classId', authMiddleware, updateClass);
 router.delete('/:classId', authMiddleware, deleteClass);
 
+router.get('/:classId/excel', downloadClassData);
+
 // Student-related routes
-router.get('/classes/:classId/students', authMiddleware, getStudentByClass);
+router.get('/classes/:classId/students', getStudentByClass);
 
 export default router;

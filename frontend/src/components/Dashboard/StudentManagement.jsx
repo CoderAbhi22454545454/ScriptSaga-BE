@@ -83,7 +83,12 @@ const StudentManagement = () => {
         leetCodeID: ""
       });
     } catch (error) {
-      toast.error(error.message || (isEditing ? "Failed to update student" : "Failed to create student"));
+      // Show specific error message for roll number conflict
+      if (error.response?.data?.message.includes('roll number')) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error(error.message || (isEditing ? "Failed to update student" : "Failed to create student"));
+      }
     }
   };
 

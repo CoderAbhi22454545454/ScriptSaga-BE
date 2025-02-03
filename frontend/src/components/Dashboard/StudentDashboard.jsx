@@ -62,10 +62,10 @@ const StudentDashboard = () => {
         setLoading(true);
         // Single API call to get user data including repos
         const studentResponse = await api.get(`/user/${user._id}`);
-        const userData = studentResponse.data.user;
+        const studentRepo = await api.get(`/github/${user._id}/repos`);
 
         // Process GitHub stats
-        const repos = userData.repos || [];
+        const repos = studentRepo.data.repos || [];
         const stats = {
           commitFrequency: processCommitFrequency(repos, dateRange.startDate, dateRange.endDate),
           languageUsage: processLanguageUsage(repos),
@@ -74,7 +74,7 @@ const StudentDashboard = () => {
 
         // Get LeetCode data if available
         let leetCodeData = null;
-        if (userData.leetCodeID) {
+        if (studentResponse.data.student.leetCodeID) {
           try {
             const leetCodeResponse = await api.get(`/lcodeprofile/${user._id}`);
             leetCodeData = leetCodeResponse.data;

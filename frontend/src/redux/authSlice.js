@@ -28,6 +28,11 @@ export const logout = () => async (dispatch) => {
         await api.post("/user/logout");
         dispatch(logoutUser());
         window.location.href = "/login"; // Redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+
+        
     } catch (error) {
         console.error("Logout error:", error);
     }

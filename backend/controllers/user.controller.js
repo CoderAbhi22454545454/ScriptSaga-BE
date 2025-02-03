@@ -26,6 +26,15 @@ export const createUser = async (req, res) => {
         });
       }
 
+      // Check if student exists with same roll number in the same class
+      const existingStudent = await User.findOne({ rollNo, classId });
+      if (existingStudent) {
+        return res.status(400).json({
+          message: 'A student is already registered with this roll number in this class',
+          success: false,
+        });
+      }
+
       const classExists = await Class.findById(classId);
       if (!classExists) {
         return res.status(400).json({
@@ -178,10 +187,18 @@ export const checkAuth = async (req, res) => {
   }
 };
 
-
 export const getUserById = async (req, res) => {
   try {
     const { userId } = req.params;
+
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
     const user = await User.findById(userId)
       .select('-password')
       .populate('classId');
@@ -193,32 +210,13 @@ export const getUserById = async (req, res) => {
       });
     }
 
-    // Get GitHub repos data if available
-    let repos = [];
-    if (user.githubID) {
-      const githubData = await GithubData.findOne({ userId: user._id });
-      if (githubData) {
-        repos = githubData.repos;
-      }
-    }
-
-    // Get LeetCode data if available
-    let leetcodeProfile = null;
-    if (user.leetCodeID) {
-      leetcodeProfile = await LeetCode.findOne({ userId: user._id });
-    }
-
-    res.json({
+    return res.status(200).json({
       success: true,
-      user: {
-        ...user.toObject(),
-        repos,
-        leetcodeProfile
-      }
+      user
     });
   } catch (error) {
-    console.error('Get User Error:', error);
-    res.status(500).json({
+    console.error('Error fetching user:', error);
+    return res.status(500).json({
       success: false,
       message: 'Error fetching user details',
       error: error.message

@@ -73,7 +73,12 @@ const Register = () => {
         "An error occurred:",
         error.response?.data || error.message
       );
-      toast.error("Registration failed. Please try again.");
+      // Show specific error message for roll number conflict
+      if (error.response?.data?.message.includes('roll number')) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Registration failed. Please try again.");
+      }
     } finally {
       dispatch(setLoading(false));
     }

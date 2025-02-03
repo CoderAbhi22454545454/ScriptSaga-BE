@@ -37,9 +37,7 @@ const AdminDashboard = () => {
 
 
 
-    const handelLogout = () => {
-        dispatch(logout());
-    }
+    
 
     if (!user) {
         return <div className='flex justify-center items-center h-screen'>

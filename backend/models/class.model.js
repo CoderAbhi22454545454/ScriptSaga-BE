@@ -18,7 +18,11 @@ const classSchema = new mongoose.Schema({
     division: {
         type: String,
         required: true
-    }
+    },
+    students: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Student'
+    }]
 }, { timestamps: true });
 
 classSchema.index({ className: 1, yearOfStudy: 1, branch: 1, division: 1 }, { unique: true });
