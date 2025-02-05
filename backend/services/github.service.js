@@ -2,6 +2,9 @@ import { memoryCache } from '../utils/memoryCache.js';
 import rateLimit from 'express-rate-limit';
 import axios from 'axios'
 import { DateTime } from 'luxon'
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Cache TTL in seconds (24 hours)
 const CACHE_TTL = 24 * 60 * 60;
