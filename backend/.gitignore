@@ -16,3 +16,11 @@ build
 # Other
 *.bak
 *.tmp
+
+# Github
+.env
+.env.local
+
+/backend/.env
+/backend/.env.local
+
