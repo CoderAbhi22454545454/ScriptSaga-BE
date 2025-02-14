@@ -11,7 +11,12 @@ import {
     deleteStudent, 
     getAllStudents ,
     getStudentMetrics,
-    updateProfile
+    updateProfile,
+    createTeacher,
+    getTeachers,
+    updateTeacher,
+    deleteTeacher,
+    getStudentsByClass,
 } from '../controllers/user.controller.js';
 import authMiddelware from '../middelwares/auth.js';
 
@@ -33,7 +38,14 @@ router.put('/update-profile/:id', updateProfile);
 // Search route
 router.get('/search', authMiddelware, searchUser);
 
+// Teacher management routes
+router.post('/create-teacher', createTeacher);
+router.get('/teachers', getTeachers);
+router.put('/update-teacher/:id', updateTeacher);
+router.delete('/delete-teacher/:id', deleteTeacher);
+
 // Parameter routes should come last
 router.get('/:userId',  getUserById);
+router.get('/class/:classId/students', getStudentsByClass);
 
 export default router;

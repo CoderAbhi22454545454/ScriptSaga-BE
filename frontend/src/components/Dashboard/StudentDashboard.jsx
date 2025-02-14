@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import CalHeatMap from "cal-heatmap";
 import "cal-heatmap/cal-heatmap.css";
 import { Loader2 } from "lucide-react";
+import StudentSuggestions from "./Github/StudentSuggestions";
+import DetailedStudentProgress from "./Github/studentMetrics/DetailedStudent";
 
 import {
   LineChart,
@@ -35,23 +37,272 @@ import {
   ListOrdered,
 } from "lucide-react";
 
+const GitHubMetrics = ({ repos }) => {
+  // Calculate metrics
+  const totalRepos = repos.length;
+  const totalCommits = repos.reduce(
+    (sum, repo) => sum + repo.commits.length,
+    0
+  );
+  const activeRepos = repos.filter((repo) => repo.commits.length > 0).length;
+  const recentActivity = repos.filter((repo) => {
+    const lastPush = new Date(repo.pushed_at);
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    return lastPush > oneMonthAgo;
+  }).length;
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <StatCard title="Total Repositories" value={totalRepos} />
+      <StatCard title="Active Repositories" value={activeRepos} />
+      <StatCard title="Total Commits" value={totalCommits} />
+      <StatCard title="Recent Activity" value={`${recentActivity} repos`} />
+    </div>
+  );
+};
+
+const StatCard = ({ title, value }) => (
+  <div className="bg-white rounded-lg p-4 shadow">
+    <h3 className="text-sm text-gray-500">{title}</h3>
+    <p className="text-2xl font-bold mt-1">{value}</p>
+  </div>
+);
+
+const ProgressMetric = ({ label, value, total }) => (
+  <div>
+    <div className="flex justify-between mb-1">
+      <span>{label}</span>
+      <span>{Math.round((value / total) * 100)}%</span>
+    </div>
+    <div className="w-full bg-gray-200 rounded-full h-2">
+      <div 
+        className="bg-blue-600 h-2 rounded-full"
+        style={{ width: `${(value / total) * 100}%` }}
+      />
+    </div>
+  </div>
+);
+
+// const TeacherNotifications = () => {
+//   const [notifications, setNotifications] = useState([]);
+//   const [loading, setLoading] = useState(true);
+
+//   useEffect(() => {
+//     const fetchNotifications = async () => {
+//       try {
+//         const response = await api.get('/notifications/student');
+//         setNotifications(response.data.notifications || []);
+//       } catch (error) {
+//         console.error('Error fetching notifications:', error);
+//         toast.error('Failed to fetch notifications');
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+
+//     fetchNotifications();
+//   }, []);
+
+//   if (loading) return <Loader2 className="h-8 w-8 animate-spin" />;
+
+//   return (
+//     <Card>
+//       <CardHeader>
+//         <CardTitle className="text-2xl flex items-center gap-2">
+//           <svg
+//             xmlns="http://www.w3.org/2000/svg"
+//             width="24"
+//             height="24"
+//             viewBox="0 0 24 24"
+//             fill="none"
+//             stroke="currentColor"
+//             strokeWidth="2"
+//             strokeLinecap="round"
+//             strokeLinejoin="round"
+//           >
+//             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+//             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+//           </svg>
+//           Teacher Notifications
+//         </CardTitle>
+//       </CardHeader>
+//       <CardContent>
+//         <div className="space-y-4">
+//           {notifications.length > 0 ? (
+//             notifications.map((notification, index) => (
+//               <div key={index} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+//                 <div className="flex-shrink-0">
+//                   <div className="w-2 h-2 mt-2 bg-blue-500 rounded-full"></div>
+//                 </div>
+//                 <div>
+//                   <p className="font-medium">{notification.title}</p>
+//                   <p className="text-sm text-gray-600">{notification.message}</p>
+//                   <p className="text-xs text-gray-400 mt-1">
+//                     {new Date(notification.createdAt).toLocaleDateString()}
+//                   </p>
+//                 </div>
+//               </div>
+//             ))
+//           ) : (
+//             <p className="text-center text-gray-500">No notifications available</p>
+//           )}
+//         </div>
+//       </CardContent>
+//     </Card>
+//   );
+// };
+
+const calculateActivityScore = (metrics) => {
+  return Math.min(
+    ((metrics.recentActivity.commits / 90) * 40 +
+    (metrics.recentActivity.activeDays.size / 90) * 30 +
+    (metrics.recentActivity.repositories.size / 5) * 30),
+    100
+  );
+};
+
+const calculateCodeQualityScore = (metrics) => {
+  const commitFrequencyScore = Math.min((metrics.recentActivity.commits / 150) * 40, 40);
+  const activeDaysScore = (metrics.recentActivity.activeDays.size / 90) * 30;
+  const reposDiversityScore = (metrics.recentActivity.repositories.size / 5) * 30;
+
+  return Math.min(
+    Math.round(commitFrequencyScore + activeDaysScore + reposDiversityScore),
+    100
+  );
+};
+
+const calculateImpactScore = (metrics) => {
+  const starsScore = Math.min((metrics.impact.totalStars * 2), 50);
+  const forksScore = Math.min((metrics.impact.totalForks * 5), 50);
+  return Math.min(starsScore + forksScore, 100);
+};
+
+const calculateGitHubMetrics = (repos) => {
+  const now = new Date();
+  const ninetyDaysAgo = new Date(now.setDate(now.getDate() - 90));
+  
+  const metrics = {
+    recentActivity: {
+      commits: 0,
+      activeDays: new Set(),
+      repositories: new Set(),
+    },
+    impact: {
+      totalStars: 0,
+      totalForks: 0,
+      contributionStreak: 0,
+    }
+  };
+
+  if (!repos || repos.length === 0) {
+    return {
+      raw: metrics,
+      scores: {
+        activity: 0,
+        quality: 0,
+        impact: 0
+      }
+    };
+  }
+
+  // Process each repository
+  repos.forEach(repo => {
+    if (!repo.commits) return;
+
+    // Recent Activity
+    repo.commits.forEach(commit => {
+      const commitDate = new Date(commit.date);
+      if (commitDate >= ninetyDaysAgo) {
+        metrics.recentActivity.commits++;
+        metrics.recentActivity.activeDays.add(commit.date.split('T')[0]);
+        metrics.recentActivity.repositories.add(repo.name);
+      }
+    });
+
+    // Impact Metrics
+    metrics.impact.totalStars += repo.stargazers_count || 0;
+    metrics.impact.totalForks += repo.forks_count || 0;
+  });
+
+  return {
+    raw: metrics,
+    scores: {
+      activity: calculateActivityScore(metrics),
+      quality: calculateCodeQualityScore(metrics),
+      impact: calculateImpactScore(metrics)
+    }
+  };
+};
+
+const processCommitFrequency = (repos, start, end) => {
+  const commitCounts = {};
+  repos.forEach((repo) => {
+    repo.commits?.forEach((commit) => {
+      const date = new Date(commit.date.split("T")[0]);
+      if ((!start || date >= start) && (!end || date <= end)) {
+        const dateString = date.toISOString().split("T")[0];
+        commitCounts[dateString] = (commitCounts[dateString] || 0) + 1;
+      }
+    });
+  });
+  return Object.entries(commitCounts)
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+};
+
+const processLanguageUsage = (repos) => {
+  const languageCounts = {};
+  repos.forEach((repo) => {
+    if (repo.language) {
+      languageCounts[repo.language] = (languageCounts[repo.language] || 0) + 1;
+    }
+  });
+  return languageCounts;
+};
+
+const getMostActiveRepos = (repos) => {
+  return repos
+    .sort((a, b) => (b.commits?.length || 0) - (a.commits?.length || 0))
+    .slice(0, 5)
+    .map((repo) => ({ name: repo.name, commitCount: repo.commits?.length || 0 }));
+};
+
 const StudentDashboard = () => {
   const user = useSelector((state) => state.auth.user);
+  const [student, setStudent] = useState();
+  const [classData, setClassData] = useState();
+  const [studentRepos, setStudentRepos] = useState([]);
+  const [studentLeetCode, setStudentLeetCode] = useState({});
+  const [repoPage, setRepoPage] = useState(1);
+  const [commitPage, setCommitPage] = useState(1);
+  const [hasMoreRepos, setHasMoreRepos] = useState(true);
+  const [selectedRepo, setSelectedRepo] = useState(null);
+  const [githubRepos, setGithubRepos] = useState([]);
+  const [commitFrequency, setCommitFrequency] = useState([]);
+  const [languageUsage, setLanguageUsage] = useState({});
+  const [mostActiveRepos, setMostActiveRepos] = useState([]);
+  const [dateRange, setDateRange] = useState({
+    startDate: new Date(new Date().setDate(new Date().getDate() - 90)), // Last 90 days
+    endDate: new Date()
+  });
+  const [loading, setLoading] = useState(true);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [isLoadingCommits, setIsLoadingCommits] = useState(false);
+  const [error, setError] = useState(null);
   const [studentData, setStudentData] = useState({
     student: null,
     classData: null,
     repos: [],
     leetCode: null
   });
-  const [loading, setLoading] = useState(true);
   const [githubStats, setGithubStats] = useState({
     commitFrequency: [],
     languageUsage: {},
-    mostActiveRepos: []
-  });
-  const [dateRange, setDateRange] = useState({
-    startDate: null,
-    endDate: null
+    mostActiveRepos: [],
+    totalCommits: 0,
+    detailedMetrics: null
   });
 
   useEffect(() => {
@@ -60,21 +311,26 @@ const StudentDashboard = () => {
 
       try {
         setLoading(true);
-        // Single API call to get user data including repos
+        // Fetch student data
         const studentResponse = await api.get(`/user/${user._id}`);
+        const studentData = studentResponse.data.user;
+
+        // Fetch GitHub repos
         const studentRepo = await api.get(`/github/${user._id}/repos`);
+        const repos = studentRepo.data.repos || [];
 
         // Process GitHub stats
-        const repos = studentRepo.data.repos || [];
         const stats = {
           commitFrequency: processCommitFrequency(repos, dateRange.startDate, dateRange.endDate),
           languageUsage: processLanguageUsage(repos),
-          mostActiveRepos: getMostActiveRepos(repos)
+          mostActiveRepos: getMostActiveRepos(repos),
+          totalCommits: repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
+          detailedMetrics: calculateGitHubMetrics(repos)
         };
 
         // Get LeetCode data if available
         let leetCodeData = null;
-        if (studentResponse.data.student.leetCodeID) {
+        if (studentData.leetCodeID) {
           try {
             const leetCodeResponse = await api.get(`/lcodeprofile/${user._id}`);
             leetCodeData = leetCodeResponse.data;
@@ -84,13 +340,12 @@ const StudentDashboard = () => {
         }
 
         setStudentData({
-          student: userData,
-          classData: userData.classId,
+          student: studentData,
+          classData: studentData.classId,
           repos: repos,
-          leetCode: leetCodeData
+          leetCode: leetCodeData,
         });
         setGithubStats(stats);
-
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error("Failed to fetch your data. Please try again.");
@@ -102,38 +357,26 @@ const StudentDashboard = () => {
     fetchAllData();
   }, [user?._id, dateRange.startDate, dateRange.endDate]);
 
-  const processCommitFrequency = (repos, start = null, end = null) => {
-    const commitCounts = {};
-    repos.forEach((repo) => {
-      repo.commits.forEach((commit) => {
-        const date = new Date(commit.date.split("T")[0]);
-        if ((!start || date >= start) && (!end || date <= end)) {
-          const dateString = date.toISOString().split("T")[0];
-          commitCounts[dateString] = (commitCounts[dateString] || 0) + 1;
-        }
-      });
-    });
-    return Object.entries(commitCounts)
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const calculateActivityScore = (metrics) => {
+    return Math.min(
+      ((metrics.recentActivity.commits / 90) * 40 +
+      (metrics.recentActivity.activeDays.size / 90) * 30 +
+      (metrics.recentActivity.repositories.size / 5) * 30),
+      100
+    );
   };
 
-  const processLanguageUsage = (repos) => {
-    const languageCounts = {};
-    repos.forEach((repo) => {
-      if (repo.language) {
-        languageCounts[repo.language] =
-          (languageCounts[repo.language] || 0) + 1;
-      }
-    });
-    return languageCounts;
+  const calculateQualityScore = (repos) => {
+    if (!repos.length) return 0;
+    const activeRepos = repos.filter(repo => repo.commits?.length > 0).length;
+    return Math.min(Math.round((activeRepos / repos.length) * 100), 100);
   };
 
-  const getMostActiveRepos = (repos) => {
-    return repos
-      .sort((a, b) => b.commits.length - a.commits.length)
-      .slice(0, 5)
-      .map((repo) => ({ name: repo.name, commitCount: repo.commits.length }));
+  const calculateImpactScore = (repos) => {
+    if (!repos.length) return 0;
+    const totalStars = repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0);
+    const totalForks = repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0);
+    return Math.min(Math.round(((totalStars * 2 + totalForks * 3) / 10) * 100), 100);
   };
 
   if (loading) {
@@ -175,7 +418,8 @@ const StudentDashboard = () => {
                 <div className="space-y-2">
                   <p className="text-lg">
                     <span className="font-semibold">Name:</span>{" "}
-                    {studentData.student?.firstName || "No data"} {studentData.student?.lastName}
+                    {studentData.student?.firstName || "No data"}{" "}
+                    {studentData.student?.lastName}
                   </p>
                   <p>
                     <span className="font-semibold">Email:</span>{" "}
@@ -232,7 +476,8 @@ const StudentDashboard = () => {
                   <p>
                     <span className="font-semibold">Total Commits:</span>{" "}
                     {studentData.repos.reduce(
-                      (sum, repo) => sum + (repo.commits ? repo.commits.length : 0),
+                      (sum, repo) =>
+                        sum + (repo.commits ? repo.commits.length : 0),
                       0
                     )}
                   </p>
@@ -285,7 +530,8 @@ const StudentDashboard = () => {
                       <div className="bg-blue-500 text-white p-4 rounded-lg">
                         <p className="text-sm font-medium">Total Solved</p>
                         <p className="text-2xl font-bold mt-1">
-                          {studentData.leetCode.completeProfile.solvedProblem || 0}
+                          {studentData.leetCode.completeProfile.solvedProblem ||
+                            0}
                         </p>
                       </div>
                       <div className="bg-green-500 text-white p-4 rounded-lg">
@@ -297,7 +543,8 @@ const StudentDashboard = () => {
                       <div className="bg-yellow-500 text-white p-4 rounded-lg">
                         <p className="text-sm font-medium">Medium Solved</p>
                         <p className="text-2xl font-bold mt-1">
-                          {studentData.leetCode.completeProfile.mediumSolved || 0}
+                          {studentData.leetCode.completeProfile.mediumSolved ||
+                            0}
                         </p>
                       </div>
                       <div className="bg-red-500 text-white p-4 rounded-lg">
@@ -411,6 +658,38 @@ const StudentDashboard = () => {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="space-y-6">
+          {/* Student Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Student Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GitHubMetrics repos={studentData.repos} />
+            </CardContent>
+          </Card>
+
+          {/* Teacher Notifications */}
+          {/* <TeacherNotifications /> */}
+
+          {/* Improvement Suggestions */}
+          <StudentSuggestions
+            githubData={{
+              totalCommits: githubStats.totalCommits,
+              languages: githubStats.languageUsage,
+              metrics: githubStats.detailedMetrics,
+              recentActivity: {
+                commits: githubStats.detailedMetrics.raw.recentActivity.commits,
+                activeDays: githubStats.detailedMetrics.raw.recentActivity.activeDays.size,
+                repositories: githubStats.detailedMetrics.raw.recentActivity.repositories.size
+              },
+              scores: githubStats.detailedMetrics.scores
+            }}
+            leetCodeData={studentData.leetCode}
+          />
+          {/* Rest of your existing components */}
         </div>
 
         {/* Progress Charts */}

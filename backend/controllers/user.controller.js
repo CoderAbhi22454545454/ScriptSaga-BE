@@ -536,3 +536,169 @@ export const updateProfile = async (req, res) => {
     });
   }
 };
+
+export const createTeacher = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, classIds } = req.body;
+
+    if (!firstName || !lastName || !email || !password || !classIds) {
+      return res.status(400).json({
+        message: 'Please enter all required fields',
+        success: false,
+      });
+    }
+
+    const existingTeacher = await User.findOne({ email });
+    if (existingTeacher) {
+      return res.status(400).json({
+        message: 'Email already registered',
+        success: false,
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const teacher = await User.create({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+      role: 'teacher',
+      classId: classIds
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Teacher created successfully',
+      teacher
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error creating teacher',
+      error: error.message
+    });
+  }
+};
+
+export const getTeachers = async (req, res) => {
+  try {
+    const teachers = await User.find({ role: 'teacher' })
+      .select('-password')
+      .populate('classId');
+    
+    res.json({
+      success: true,
+      teachers
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching teachers',
+      error: error.message
+    });
+  }
+};
+
+export const deleteTeacher = async (req, res) => {
+  try {
+    const teacherId = req.params.id;
+    
+    // Check if teacher exists
+    const teacher = await User.findOne({ _id: teacherId, role: 'teacher' });
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: 'Teacher not found'
+      });
+    }
+
+    // Delete the teacher
+    await User.findByIdAndDelete(teacherId);
+    
+    res.json({
+      success: true,
+      message: 'Teacher deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting teacher',
+      error: error.message
+    });
+  }
+};
+
+export const updateTeacher = async (req, res) => {
+  try {
+    const { firstName, lastName, email, classIds } = req.body;
+    const teacherId = req.params.id;
+
+    // Check if teacher exists
+    const teacher = await User.findOne({ _id: teacherId, role: 'teacher' });
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: 'Teacher not found'
+      });
+    }
+
+    // Check if email is being changed and if it's already in use
+    if (email !== teacher.email) {
+      const emailExists = await User.findOne({ email, _id: { $ne: teacherId } });
+      if (emailExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already in use'
+        });
+      }
+    }
+
+    // Update teacher
+    const updatedTeacher = await User.findByIdAndUpdate(
+      teacherId,
+      {
+        firstName,
+        lastName,
+        email,
+        classId: classIds
+      },
+      { new: true }
+    ).populate('classId');
+
+    res.json({
+      success: true,
+      message: 'Teacher updated successfully',
+      teacher: updatedTeacher
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating teacher',
+      error: error.message
+    });
+  }
+};
+
+export const getStudentsByClass = async (req, res) => {
+  try {
+    const classId = req.params.classId;
+    const students = await User.find({ 
+      role: 'student',
+      classId: classId 
+    })
+    .select('-password')
+    .populate('classId');
+    
+    res.json({
+      success: true,
+      students
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching students',
+      error: error.message
+    });
+  }
+};
+

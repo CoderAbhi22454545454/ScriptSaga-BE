@@ -6,9 +6,11 @@ import {
     deleteClass,
     getStudentByClass,
     getAllClasses,
-    downloadClassData
+    downloadClassData,
+    getTeacherClasses
 } from '../controllers/class.controller.js';
 import authMiddleware from '../middelwares/auth.js';
+import { User } from '../models/user.model.js';
 const router = express.Router();
 
 // Class CRUD routes
@@ -22,5 +24,7 @@ router.get('/:classId/excel', downloadClassData);
 
 // Student-related routes
 router.get('/classes/:classId/students', getStudentByClass);
+
+router.get('/teacher/:teacherId/classes', getTeacherClasses);
 
 export default router;

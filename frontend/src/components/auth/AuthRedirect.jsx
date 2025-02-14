@@ -7,9 +7,11 @@ const AuthRedirect = ({ children }) => {
   const user = useSelector((state) => state.auth.user);
 
   if (user.role === "student") {
-    Navigate('/student');
+    return <Navigate to="/" replace />;
   } else if (user.role === "admin") {
-    Navigate('/admin');
+    return <Navigate to="/admin" replace />;
+  } else if (user.role === "teacher") {
+    return <Navigate to="/teacher" replace />;
   }
 
   return children;

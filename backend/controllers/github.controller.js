@@ -11,6 +11,8 @@ const GitHub_BaseURL = "https://api.github.com";
 
 const token = process.env.GITHUB_TOKEN;
 
+console.log('Controller Token:', process.env.GITHUB_TOKEN ? 'Token exists' : 'No token found');
+
 const githubApi = axios.create({
     baseURL: GitHub_BaseURL,
     headers: {
@@ -77,13 +79,12 @@ export const getStudentReposWithCommits = async (req, res) => {
         );
       } catch (error) {
         console.error('GitHub API Error:', error);
-        // Return cached data if available, otherwise return error
-        if (!githubData) {
-          return res.status(503).json({
-            message: "GitHub API unavailable, please try again later",
-            success: false
-          });
-        }
+        // Return more specific error messages
+        return res.status(503).json({
+          message: `GitHub API Error: ${error.message}`,
+          success: false,
+          error: error.message
+        });
       }
     }
 
@@ -105,7 +106,8 @@ export const getStudentReposWithCommits = async (req, res) => {
     console.error("Server Error:", error);
     res.status(500).json({
       message: "Internal server error",
-      success: false
+      success: false,
+      error: error.message
     });
   }
 };

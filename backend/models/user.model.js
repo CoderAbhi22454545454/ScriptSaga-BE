@@ -20,18 +20,30 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'student'],
-    default: 'student'
+    required: true,
+    enum: ['admin', 'teacher', 'student']
   },
-  rollNo: {
-    type: String
-  },
-  classId: {
+  classId: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Class'
+  }],
+  rollNo: {
+    type: String,
+    required: function() { return this.role === 'student'; },
+    sparse: true
   },
-  githubID: String,
-  leetCodeID: String,
+  githubID: {
+    type: String,
+    required: function() { return this.role === 'student'; }
+  },
+  leetCodeID: {
+    type: String
+  },
+  githubUsername: {
+    type: String,
+    required: function() { return this.role === 'teacher'; }
+  },
+
   githubData: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'GithubData'
@@ -52,8 +64,21 @@ const userSchema = new mongoose.Schema({
     language: String,
     stargazers_count: Number,
     forks_count: Number
-}]
+  }],
+  notifications: [{
+    message: String,
+    createdAt: { type: Date, default: Date.now },
+    from: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    read: { type: Boolean, default: false }
+  }]
 }, { timestamps: true });
 
-userSchema.index({ rollNo: 1, classId: 1 }, { unique: true });
+userSchema.index({ rollNo: 1, classId: 1 }, {
+  unique: true,
+  partialFilterExpression: { role: 'student' }
+});
+
 export const User = mongoose.model('User', userSchema);

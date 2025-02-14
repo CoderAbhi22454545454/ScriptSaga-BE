@@ -38,13 +38,35 @@ export const getGithubUserRepos = async (githubID) => {
       return cachedData;
     }
 
+    if (!token) {
+      throw new Error('GitHub token not configured');
+    }
+
     const repos = await githubApi.get(`/users/${githubID}/repos`);
-    memoryCache.set(cacheKey, repos.data, CACHE_TTL);
     
+    if (!repos.data) {
+      throw new Error('No data received from GitHub API');
+    }
+    
+    memoryCache.set(cacheKey, repos.data, CACHE_TTL);
     return repos.data;
+    
   } catch (error) {
-    console.error('GitHub API Error:', error);
-    throw new Error('Failed to fetch GitHub repositories');
+    console.error('GitHub API Error:', {
+      message: error.message,
+      status: error.response?.status,
+      githubID
+    });
+    
+    if (error.response?.status === 404) {
+      throw new Error('GitHub user not found');
+    }
+    
+    if (error.response?.status === 401) {
+      throw new Error('Invalid GitHub token');
+    }
+    
+    throw new Error('Failed to fetch GitHub repositories: ' + error.message);
   }
 };
 

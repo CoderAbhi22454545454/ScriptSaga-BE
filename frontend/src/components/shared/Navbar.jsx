@@ -18,6 +18,8 @@ import {
   Users2,
   GraduationCap,
   School,
+  BookOpen,
+  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -142,6 +144,24 @@ export function Navbar({ children }) {
     navigate(`/admin/student/${studentId}`);
   };
 
+  const teacherLinks = [
+    {
+      title: "Classes",
+      href: "/teacher/classes",
+      icon: BookOpen
+    },
+    {
+      title: "Students",
+      href: "/teacher/students",
+      icon: Users
+    },
+    {
+      title: "Settings",
+      href: `/teacher/settings/${user?._id}`,
+      icon: Settings
+    }
+  ];
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <aside className="fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex w-52">
@@ -179,6 +199,15 @@ export function Navbar({ children }) {
                 <span>Students</span>
               </Link>
             </li>
+            <li>
+              <Link
+                to="/admin/teacher-management"
+                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
+              >
+                <Users2 className="h-5 w-5" />
+                <span>Teachers</span>
+              </Link>
+            </li>
           </ul>
           )}
           {user.role === "student" && (
@@ -191,6 +220,20 @@ export function Navbar({ children }) {
               </li>
             </ul>
           )}
+          {user?.role === 'teacher' && teacherLinks.map((link) => 
+          (
+            <ul className="p-2 py-1 space-y-2 list-none" key={link.href}>
+            <li>
+              <Link
+                to={link.href}
+                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
+              >
+                <link.icon className="h-5 w-5" />
+                <span>{link.title}</span>
+              </Link>
+            </li>
+            </ul>
+          ))}
         </nav>
         <div className="border-t p-4">
           {user.role === "admin" && (

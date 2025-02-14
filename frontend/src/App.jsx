@@ -14,7 +14,9 @@ import ClassesPage from './components/Dashboard/ClassesPage';
 import ClassManagement from './components/Dashboard/ClassManagement';
 import StudentManagement from './components/Dashboard/StudentManagement';
 import Settings from './components/Dashboard/Settings';
-
+import TeacherDashboard from './components/Dashboard/TeacherDashboard';
+import TeacherManagement from './components/Dashboard/TeacherManagement';
+import TeacherClassView from './components/Dashboard/TeacherClassView';
 const appRouter = createBrowserRouter([
   {
     path: '/',
@@ -74,6 +76,40 @@ const appRouter = createBrowserRouter([
         path: 'settings/:id',
         element: <Settings />,
       },
+      {
+        path: 'teacher-management',
+        element: <TeacherManagement />,
+      },
+    ],
+  },
+  {
+    path: '/teacher',
+    element: <ProtectedRoute role="teacher" />,
+    children: [
+      {
+        path: '',
+        element: <TeacherDashboard />,
+      },
+      {
+        path: 'class/:classId',
+        element: <TeacherClassView />,
+      },
+      {
+        path: 'student/:userId',
+        element: <StudentDetailGit />,
+      },
+      {
+        path: 'classes',
+        element: <TeacherDashboard />,
+      },
+      {
+        path: 'students',
+        element: <AllStudentsPage />,
+      },
+      {
+        path: 'settings/:id',
+        element: <Settings />,
+      }
     ],
   },
   {

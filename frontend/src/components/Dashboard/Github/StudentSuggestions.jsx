@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AlertCircle, TrendingUp, Code, BookOpen } from 'lucide-react';
 
+
 const StudentSuggestions = ({ githubData, leetCodeData }) => {
   const generateSuggestions = () => {
     const suggestions = [];

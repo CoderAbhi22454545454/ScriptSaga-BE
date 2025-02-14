@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 import { Download } from "lucide-react";
+import { useSelector } from 'react-redux';
 
 
 const StudentList = () => {
@@ -19,6 +20,7 @@ const StudentList = () => {
     const [classData, setClassData] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [error, setError] = useState(null);
+    const user = useSelector((state) => state.auth.user);
 
     const filterStudent = students.filter((student) => {
         const searchTermLower = searchQuery.toLowerCase()
@@ -122,7 +124,8 @@ const StudentList = () => {
     }
 
     const handleStudentClick = (studentId) => {
-        navigate(`/admin/student/${studentId}`);
+        const baseRoute = user.role === 'admin' ? '/admin' : '/teacher';
+        navigate(`${baseRoute}/student/${studentId}`);
     };
 
     return (
@@ -199,8 +202,8 @@ const StudentList = () => {
                     {filterStudent.map((student) => (
                       <TableRow
                         key={student._id}
+                        className="cursor-pointer hover:bg-gray-50"
                         onClick={() => handleStudentClick(student._id)}
-                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
                         <TableCell>{student.rollNo}</TableCell>
                         <TableCell>{student.firstName} {student.lastName}</TableCell>

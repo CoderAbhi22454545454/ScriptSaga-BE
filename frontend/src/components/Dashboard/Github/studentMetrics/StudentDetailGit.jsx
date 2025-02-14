@@ -91,7 +91,7 @@ const StudentDetailGit = () => {
         
         // Fetch LeetCode data if available
         if (studentData.leetCodeID) {
-          const leetCodeResponse = await api.get(`/leetcode/${userId}/profile`);
+          const leetCodeResponse = await api.get(`/lcodeprofile/${userId}`);
           setStudentLeetCode(leetCodeResponse.data);
         }
       } catch (error) {

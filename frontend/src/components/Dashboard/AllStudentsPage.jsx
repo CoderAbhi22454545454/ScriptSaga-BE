@@ -6,11 +6,13 @@ import { Navbar } from '../shared/Navbar';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Input } from '../ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useSelector } from 'react-redux';
 
 const AllStudentsPage = () => {
     const [students, setStudents] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
+    const user = useSelector((state) => state.auth.user);
 
     useEffect(() => {
         const fetchStudents = async () => {
@@ -36,7 +38,8 @@ const AllStudentsPage = () => {
     });
 
     const handleStudentClick = (studentId) => {
-        navigate(`/admin/student/${studentId}`);
+        const baseRoute = user.role === 'admin' ? '/admin' : '/teacher';
+        navigate(`${baseRoute}/student/${studentId}`);
     };
 
     return (

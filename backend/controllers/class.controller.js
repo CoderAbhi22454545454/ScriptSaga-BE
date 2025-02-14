@@ -226,3 +226,31 @@ export const downloadClassData = async (req, res) => {
     });
   }
 };
+
+export const getTeacherClasses = async (req, res) => {
+  try {
+    const teacherId = req.params.teacherId;
+    
+    const teacher = await User.findById(teacherId)
+      .populate('classId')
+      .select('classId');
+    
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: 'Teacher not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      classes: teacher.classId
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching teacher classes',
+      error: error.message
+    });
+  }
+};

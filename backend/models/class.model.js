@@ -6,9 +6,8 @@ const classSchema = new mongoose.Schema({
         required: true
     },
     yearOfStudy: {
-        type: String,
-        required: true,
-        enum: ["FE", "SE", "TE", "BE"]
+        type: Number,
+        required: true
     },
     branch: {
         type: String,
@@ -21,7 +20,7 @@ const classSchema = new mongoose.Schema({
     },
     students: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Student'
+        ref: 'User'
     }]
 }, { timestamps: true });
 
