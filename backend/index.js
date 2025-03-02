@@ -8,6 +8,7 @@ import classRoutes from "./route/class.route.js";
 import githubRoutes from "./route/github.route.js"
 import leetcodeRoutes from "./route/leetcode.route.js"
 import assignmentRoutes from "./route/assignmentRoutes.js"
+import metricsRoutes from "./routes/metrics.route.js";
 dotenv.config()
 
 const app = express()
@@ -36,7 +37,8 @@ app.use('/api/v1/' , leetcodeRoutes)
 // Assignment Routes
 app.use('/api/v1/assignment', assignmentRoutes)
 
-
+// Metrics Routes
+app.use('/api/v1/metrics', metricsRoutes);
 
 
 app.use((err, req, res, next) => {

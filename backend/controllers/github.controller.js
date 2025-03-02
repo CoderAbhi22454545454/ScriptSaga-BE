@@ -20,11 +20,14 @@ const githubApi = axios.create({
     }
 })
 
+const MAX_PER_PAGE = 100; // GitHub's maximum items per page
+const MAX_CONCURRENT_REQUESTS = 10; // Increased batch size for better performance
+
 export const getStudentReposWithCommits = async (req, res) => {
   try {
     const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || MAX_PER_PAGE;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ 
@@ -41,23 +44,24 @@ export const getStudentReposWithCommits = async (req, res) => {
       });
     }
 
-    // Get cached or fresh GitHub data
     let githubData = await GithubData.findOne({ userId });
     const needsUpdate = !githubData || 
                        Date.now() - githubData.lastUpdated > 24 * 60 * 60 * 1000;
 
     if (needsUpdate) {
       try {
-        const repos = await getGithubUserRepos(user.githubID);
+        // Get all repos with maximum items per page
+        const repos = await getGithubUserRepos(user.githubID, MAX_PER_PAGE);
         
-        // Process repos in batches to avoid overwhelming the API
+        // Process repos in larger batches
         const reposWithCommits = [];
-        for (let i = 0; i < repos.length; i += 5) {
-          const batch = repos.slice(i, i + 5);
+        for (let i = 0; i < repos.length; i += MAX_CONCURRENT_REQUESTS) {
+          const batch = repos.slice(i, i + MAX_CONCURRENT_REQUESTS);
           const batchPromises = batch.map(repo => 
-            getGithubRepoCommits(user.githubID, repo.name)
-              .catch(err => ({ commits: [] })) // Handle individual repo failures
+            getAllCommitsForRepo(user.githubID, repo.name)
+              .catch(err => ({ commits: [] }))
           );
+          
           const batchResults = await Promise.all(batchPromises);
           
           reposWithCommits.push(...batch.map((repo, idx) => ({
@@ -79,7 +83,6 @@ export const getStudentReposWithCommits = async (req, res) => {
         );
       } catch (error) {
         console.error('GitHub API Error:', error);
-        // Return more specific error messages
         return res.status(503).json({
           message: `GitHub API Error: ${error.message}`,
           success: false,
@@ -88,7 +91,7 @@ export const getStudentReposWithCommits = async (req, res) => {
       }
     }
 
-    // Implement pagination
+    // Implement pagination with maximum items per page
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
     const paginatedRepos = githubData.repos.slice(startIndex, endIndex);
@@ -99,7 +102,8 @@ export const getStudentReposWithCommits = async (req, res) => {
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(githubData.repos.length / limit),
-        totalRepos: githubData.repos.length
+        totalRepos: githubData.repos.length,
+        itemsPerPage: limit
       }
     });
   } catch (error) {
@@ -111,54 +115,48 @@ export const getStudentReposWithCommits = async (req, res) => {
     });
   }
 };
-// export const getGithubRepoCommits = async (githubID, repoName) => {
-//     console.log("Fetching commits for:", githubID, repoName);
-  
-//     try {
-//       const response = await githubApi.get(`/repos/${githubID}/${repoName}/commits`, {
-//         params: {
-//           per_page: 100,
-//           page: 1,
-//         }
-//       });
-  
-//       const commits = response.data.map(commit => ({
-//         message: commit.commit.message,
-//         date: commit.commit.author.date,
-//         url: commit.html_url,
-//       }));
-  
-//       return commits;
-//     } catch (error) {
-//       console.error('Error fetching commits:', error);
-//       throw error;
-//     }
-//   };
 
-// export const updateStudentRepos = async (req, res) => {
-//     try {
-//         const { userId } = req.params;
+// Helper function to get all commits for a repository
+const getAllCommitsForRepo = async (githubID, repoName) => {
+  try {
+    let allCommits = [];
+    let page = 1;
+    let hasMoreCommits = true;
 
-//         if (!mongoose.Types.ObjectId.isValid(userId)) {
-//             return res.status(400).json({ message: 'Invalid user ID format', success: false });
-//         }
-        
-//         const user = await User.findById(userId);
+    while (hasMoreCommits) {
+      const response = await githubApi.get(`/repos/${githubID}/${repoName}/commits`, {
+        params: {
+          per_page: MAX_PER_PAGE,
+          page: page
+        }
+      });
 
-//         if (!user) {
-//             return res.status(404).json({ message: "User not found", success: false });
-//         }
+      const commits = response.data.map(commit => ({
+        message: commit.commit.message,
+        date: commit.commit.author.date,
+        url: commit.html_url,
+        sha: commit.sha,
+        author: commit.commit.author.name
+      }));
 
-//         const repos = await getGithubUserRepos(newUser.githubID);
-//         newUser.githubRepos = repos;
-//         await user.save();
+      allCommits.push(...commits);
 
-//         res.status(200).json({ message: "GitHub repos updated successfully", success: true });
-//     } catch (error) {
-//         console.log("Error while updating student repos: ", error);
-//         res.status(500).json({ message: "Server Error", success: false });
-//     }
-// }
+      // Check if there are more commits
+      hasMoreCommits = commits.length === MAX_PER_PAGE;
+      page++;
+
+      // Add a small delay to avoid rate limiting
+      if (hasMoreCommits) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    return { commits: allCommits };
+  } catch (error) {
+    console.error(`Error fetching commits for ${repoName}:`, error);
+    return { commits: [] };
+  }
+};
 
 class MemoryCache {
   constructor() {

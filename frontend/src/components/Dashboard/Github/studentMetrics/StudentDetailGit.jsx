@@ -56,6 +56,7 @@ const StudentDetailGit = () => {
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [isLoadingCommits, setIsLoadingCommits] = useState(false);
   const [error, setError] = useState(null);
+  const [metrics, setMetrics] = useState(null);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -73,7 +74,7 @@ const StudentDetailGit = () => {
         setStudent(studentData);
         setClassData(studentData.classId);
         
-        // Fetch GitHub repositories with correct endpoint
+        // Fetch GitHub repositories
         const reposResponse = await api.get(`/github/${userId}/repos`);
         if (!reposResponse.data.success) {
           throw new Error('Failed to fetch GitHub repositories');
@@ -90,10 +91,26 @@ const StudentDetailGit = () => {
         }
         
         // Fetch LeetCode data if available
+        let leetCodeData = null;
         if (studentData.leetCodeID) {
           const leetCodeResponse = await api.get(`/lcodeprofile/${userId}`);
-          setStudentLeetCode(leetCodeResponse.data);
+          leetCodeData = leetCodeResponse.data;
+          setStudentLeetCode(leetCodeData);
         }
+
+        // Update metrics with both GitHub and LeetCode data
+        const metricsResponse = await api.post(`/metrics/${userId}/update`, {
+          repos: repos,
+          leetcode: leetCodeData
+        });
+
+        if (!metricsResponse.data.success) {
+          throw new Error('Failed to update metrics');
+        }
+
+        // Store metrics in state
+        setMetrics(metricsResponse.data.metrics);
+        
       } catch (error) {
         console.error('Error fetching data:', error);
         setError(error.message);
