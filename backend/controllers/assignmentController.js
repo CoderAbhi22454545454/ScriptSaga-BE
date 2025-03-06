@@ -172,18 +172,67 @@ export const getStudentAssignments = async (req, res) => {
   try {
     const { studentId } = req.params;
     
-    // Find all assignments where the student has a repository
+    // First, get the student to find their class
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+    
+    // Get the student's class ID
+    const classId = student.classId;
+    if (!classId) {
+      return res.json({
+        success: true,
+        assignments: []
+      });
+    }
+    
+    // Find all assignments for the student's class
     const assignments = await Assignment.find({
-      'studentRepos.studentId': studentId
+      classId: classId
     })
     .populate('classId', 'name')
     .populate('teacherId', 'firstName lastName')
     .populate('studentRepos.studentId', 'firstName lastName rollNo')
     .sort({ dueDate: 1 });
     
+    // Process assignments to add student repo info if it doesn't exist
+    const processedAssignments = assignments.map(assignment => {
+      const assignmentObj = assignment.toObject();
+      
+      // Check if student already has a repo entry
+      const existingRepo = assignmentObj.studentRepos?.find(
+        repo => repo.studentId._id.toString() === studentId
+      );
+      
+      // If not, add a placeholder entry
+      if (!existingRepo) {
+        if (!assignmentObj.studentRepos) {
+          assignmentObj.studentRepos = [];
+        }
+        
+        assignmentObj.studentRepos.push({
+          studentId: {
+            _id: studentId,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            rollNo: student.rollNo
+          },
+          submitted: false,
+          repoUrl: '',
+          submissionDate: null
+        });
+      }
+      
+      return assignmentObj;
+    });
+    
     res.json({
       success: true,
-      assignments
+      assignments: processedAssignments
     });
   } catch (error) {
     console.error('Error in getStudentAssignments:', error);

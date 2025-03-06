@@ -16,7 +16,9 @@ import "cal-heatmap/cal-heatmap.css";
 import { Loader2 } from "lucide-react";
 import StudentSuggestions from "./Github/StudentSuggestions";
 import DetailedStudentProgress from "./Github/studentMetrics/DetailedStudent";
-
+import { useNavigate } from 'react-router-dom';
+import { Bell, BookOpen, ExternalLink, CheckCircle, Clock, AlertTriangle, ClipboardCopy } from 'lucide-react';
+import StudentNotifications from "./StudentNotifications";
 import {
   LineChart,
   BarChart,
@@ -36,6 +38,7 @@ import {
   PieChart as PieChartIcon,
   ListOrdered,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const GitHubMetrics = ({ repos }) => {
   // Calculate metrics
@@ -83,75 +86,6 @@ const ProgressMetric = ({ label, value, total }) => (
     </div>
   </div>
 );
-
-// const TeacherNotifications = () => {
-//   const [notifications, setNotifications] = useState([]);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     const fetchNotifications = async () => {
-//       try {
-//         const response = await api.get('/notifications/student');
-//         setNotifications(response.data.notifications || []);
-//       } catch (error) {
-//         console.error('Error fetching notifications:', error);
-//         toast.error('Failed to fetch notifications');
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchNotifications();
-//   }, []);
-
-//   if (loading) return <Loader2 className="h-8 w-8 animate-spin" />;
-
-//   return (
-//     <Card>
-//       <CardHeader>
-//         <CardTitle className="text-2xl flex items-center gap-2">
-//           <svg
-//             xmlns="http://www.w3.org/2000/svg"
-//             width="24"
-//             height="24"
-//             viewBox="0 0 24 24"
-//             fill="none"
-//             stroke="currentColor"
-//             strokeWidth="2"
-//             strokeLinecap="round"
-//             strokeLinejoin="round"
-//           >
-//             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-//             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-//           </svg>
-//           Teacher Notifications
-//         </CardTitle>
-//       </CardHeader>
-//       <CardContent>
-//         <div className="space-y-4">
-//           {notifications.length > 0 ? (
-//             notifications.map((notification, index) => (
-//               <div key={index} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-//                 <div className="flex-shrink-0">
-//                   <div className="w-2 h-2 mt-2 bg-blue-500 rounded-full"></div>
-//                 </div>
-//                 <div>
-//                   <p className="font-medium">{notification.title}</p>
-//                   <p className="text-sm text-gray-600">{notification.message}</p>
-//                   <p className="text-xs text-gray-400 mt-1">
-//                     {new Date(notification.createdAt).toLocaleDateString()}
-//                   </p>
-//                 </div>
-//               </div>
-//             ))
-//           ) : (
-//             <p className="text-center text-gray-500">No notifications available</p>
-//           )}
-//         </div>
-//       </CardContent>
-//     </Card>
-//   );
-// };
 
 const calculateActivityScore = (metrics) => {
   return Math.min(
@@ -269,6 +203,34 @@ const getMostActiveRepos = (repos) => {
     .map((repo) => ({ name: repo.name, commitCount: repo.commits?.length || 0 }));
 };
 
+const getAssignmentStatus = (dueDate, submitted) => {
+  if (submitted) return { 
+    label: "Submitted", 
+    color: "bg-green-100 text-green-800", 
+    icon: <CheckCircle className="h-4 w-4" /> 
+  };
+  
+  const now = new Date();
+  const due = new Date(dueDate);
+  const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) return { 
+    label: "Past Due", 
+    color: "bg-red-100 text-red-800", 
+    icon: <AlertTriangle className="h-4 w-4" /> 
+  };
+  if (diffDays <= 2) return { 
+    label: "Due Soon", 
+    color: "bg-yellow-100 text-yellow-800", 
+    icon: <Clock className="h-4 w-4" /> 
+  };
+  return { 
+    label: "Upcoming", 
+    color: "bg-blue-100 text-blue-800", 
+    icon: <Clock className="h-4 w-4" /> 
+  };
+};
+
 const StudentDashboard = () => {
   const user = useSelector((state) => state.auth.user);
   const [student, setStudent] = useState();
@@ -304,6 +266,20 @@ const StudentDashboard = () => {
     totalCommits: 0,
     detailedMetrics: null
   });
+  const [assignments, setAssignments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(true);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const findStudentRepo = (assignment) => {
+    if (!assignment?.studentRepos || !user?._id) return null;
+    
+    return assignment.studentRepos.find(repo => 
+      (repo.studentId._id === user._id) || 
+      (typeof repo.studentId === 'string' && repo.studentId === user._id)
+    );
+  };
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -314,6 +290,12 @@ const StudentDashboard = () => {
         // Fetch student data
         const studentResponse = await api.get(`/user/${user._id}`);
         const studentData = studentResponse.data.user;
+        
+        // Set notifications from user data if available
+        if (studentData && studentData.notifications) {
+          setNotifications(studentData.notifications || []);
+          setNotificationsLoading(false);
+        }
 
         // Fetch GitHub repos
         const studentRepo = await api.get(`/github/${user._id}/repos`);
@@ -346,6 +328,14 @@ const StudentDashboard = () => {
           leetCode: leetCodeData,
         });
         setGithubStats(stats);
+        
+        // Fetch assignments separately
+        fetchAssignments();
+        
+        // If notifications weren't in the user data, fetch them separately
+        if (!studentData.notifications) {
+          fetchNotifications();
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error("Failed to fetch your data. Please try again.");
@@ -357,26 +347,93 @@ const StudentDashboard = () => {
     fetchAllData();
   }, [user?._id, dateRange.startDate, dateRange.endDate]);
 
-  const calculateActivityScore = (metrics) => {
-    return Math.min(
-      ((metrics.recentActivity.commits / 90) * 40 +
-      (metrics.recentActivity.activeDays.size / 90) * 30 +
-      (metrics.recentActivity.repositories.size / 5) * 30),
-      100
-    );
+  const fetchAssignments = async () => {
+    if (!user?._id) return;
+    
+    try {
+      setAssignmentsLoading(true);
+      
+      // First try to get assignments directly associated with the student
+      const response = await api.get(`/assignment/student/${user._id}`);
+      
+      if (response.data.success && response.data.assignments?.length > 0) {
+        setAssignments(response.data.assignments);
+      } else {
+        // If no assignments found, try to get assignments for the student's class
+        if (studentData.student?.classId) {
+          const classId = Array.isArray(studentData.student.classId) 
+            ? studentData.student.classId[0]
+            : studentData.student.classId;
+            
+          console.log("Trying to fetch assignments for class:", classId);
+          
+          // Try to fetch assignments for the student's class
+          const classResponse = await api.get(`/assignment/class/${classId}`);
+          
+          if (classResponse.data.success && classResponse.data.assignments) {
+            // Process assignments to add empty studentRepo entries if needed
+            const processedAssignments = classResponse.data.assignments.map(assignment => {
+              // If student doesn't have a repo entry yet, add a placeholder
+              if (!assignment.studentRepos?.some(repo => repo.studentId === user._id)) {
+                assignment.studentRepos = [
+                  ...(assignment.studentRepos || []),
+                  { studentId: { _id: user._id }, submitted: false }
+                ];
+              }
+              return assignment;
+            });
+            
+            setAssignments(processedAssignments);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
+      toast.error('Failed to fetch assignments');
+    } finally {
+      setAssignmentsLoading(false);
+    }
   };
 
-  const calculateQualityScore = (repos) => {
-    if (!repos.length) return 0;
-    const activeRepos = repos.filter(repo => repo.commits?.length > 0).length;
-    return Math.min(Math.round((activeRepos / repos.length) * 100), 100);
+  const fetchNotifications = async () => {
+    if (!user?._id) return;
+    
+    try {
+      setNotificationsLoading(true);
+      // Instead of using a dedicated notifications endpoint, we can use the user data
+      // that already contains notifications
+      if (studentData.student && studentData.student.notifications) {
+        setNotifications(studentData.student.notifications || []);
+      } else {
+        // Try to fetch user data specifically for notifications
+        const response = await api.get(`/user/${user._id}`);
+        if (response.data.success && response.data.user) {
+          setNotifications(response.data.user.notifications || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      toast.error('Failed to fetch notifications');
+    } finally {
+      setNotificationsLoading(false);
+    }
   };
 
-  const calculateImpactScore = (repos) => {
-    if (!repos.length) return 0;
-    const totalStars = repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0);
-    const totalForks = repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0);
-    return Math.min(Math.round(((totalStars * 2 + totalForks * 3) / 10) * 100), 100);
+  const handleSubmitAssignment = async (assignmentId, repoUrl) => {
+    try {
+      const response = await api.post('/assignment/submit', {
+        assignmentId,
+        studentId: user._id
+      });
+      
+      if (response.data.success) {
+        toast.success('Assignment marked as submitted');
+        fetchAssignments();
+      }
+    } catch (error) {
+      console.error('Error submitting assignment:', error);
+      toast.error('Failed to submit assignment');
+    }
   };
 
   if (loading) {
@@ -689,7 +746,214 @@ const StudentDashboard = () => {
             }}
             leetCodeData={studentData.leetCode}
           />
-          {/* Rest of your existing components */}
+
+          {/* Assignments Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <BookOpen className="h-6 w-6" />
+                My Assignments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {assignmentsLoading ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : assignments.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {assignments.map((assignment) => {
+                    const studentRepo = findStudentRepo(assignment);
+                    const status = getAssignmentStatus(
+                      assignment.dueDate, 
+                      studentRepo?.submitted || false
+                    );
+                    
+                    const dueDate = new Date(assignment.dueDate);
+                    const now = new Date();
+                    const totalTime = new Date(assignment.dueDate) - new Date(assignment.createdAt);
+                    const remainingTime = dueDate - now;
+                    const progressPercentage = Math.max(
+                      0, 
+                      Math.min(100, 100 - (remainingTime / totalTime) * 100)
+                    );
+
+                    // Format the template repo URL for display
+                    const templateRepoUrl = assignment.templateRepo ? 
+                      `https://github.com/${assignment.templateRepo}` : 
+                      null;
+
+                    return (
+                      <Card key={assignment._id} className="overflow-hidden">
+                        <CardHeader className={`${status.color} border-b`}>
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="text-lg">{assignment.title}</CardTitle>
+                            <div className="flex items-center gap-1 text-sm font-medium">
+                              {status.icon}
+                              {status.label}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        
+                        <CardContent className="p-4 space-y-4">
+                          <p className="text-sm text-gray-600 line-clamp-2">{assignment.description}</p>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-500">Due: </span>
+                              <span className="font-medium">
+                                {new Date(assignment.dueDate).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Points: </span>
+                              <span className="font-medium">{assignment.points}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Add Template Repository URL */}
+                          <div className="mt-4 mb-4">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Template Repository:</h4>
+                            {templateRepoUrl ? (
+                              <div className="flex items-center bg-gray-50 p-2 rounded-md border">
+                                <input 
+                                  type="text" 
+                                  value={templateRepoUrl} 
+                                  readOnly 
+                                  className="flex-1 bg-transparent text-xs text-gray-700 focus:outline-none overflow-hidden text-ellipsis"
+                                />
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(templateRepoUrl);
+                                    toast.success("Template repository URL copied to clipboard");
+                                  }}
+                                  className="ml-2"
+                                >
+                                  <ClipboardCopy className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-500 italic">No template repository available</p>
+                            )}
+                          </div>
+                          
+                          {/* Student Repository URL */}
+                          <div className="mb-4">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Your Repository:</h4>
+                            {studentRepo?.repoUrl ? (
+                              <div className="flex items-center bg-gray-50 p-2 rounded-md border">
+                                <input 
+                                  type="text" 
+                                  value={studentRepo.repoUrl} 
+                                  readOnly 
+                                  className="flex-1 bg-transparent text-xs text-gray-700 focus:outline-none overflow-hidden text-ellipsis"
+                                />
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(studentRepo.repoUrl);
+                                    toast.success("Repository URL copied to clipboard");
+                                  }}
+                                  className="ml-2"
+                                >
+                                  <ClipboardCopy className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-500 italic">No repository URL available</p>
+                            )}
+                          </div>
+                          
+                          <div className="flex space-x-2 mt-4">
+                            {/* Template Repository Button */}
+                            {templateRepoUrl && (
+                              <Button variant="outline" className="flex items-center" asChild>
+                                <a href={templateRepoUrl} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                  View Template Repository
+                                </a>
+                              </Button>
+                            )}
+                            
+                            {/* Student Repository Button */}
+                            {studentRepo?.repoUrl && (
+                              <Button variant="outline" className="flex items-center" asChild>
+                                <a href={studentRepo.repoUrl} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                  Open Your Repository
+                                </a>
+                              </Button>
+                            )}
+                            
+                            {!studentRepo?.submitted && (
+                              <Button 
+                                size="sm"
+                                onClick={() => handleSubmitAssignment(assignment._id, studentRepo?.repoUrl)}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                Mark as Submitted
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-gray-500">No assignments found.</p>
+                  {process.env.NODE_ENV === 'development' && (
+                    <>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Debug: API endpoint used: /assignment/student/{user._id}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Note: Assignments may need to be explicitly assigned to students by teachers.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+              <div className="flex justify-center mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/student/assignments')}
+                >
+                  View All Assignments
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notifications Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <Bell className="h-6 w-6" />
+                Notifications
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {notificationsLoading ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <StudentNotifications notifications={notifications} />
+                  {process.env.NODE_ENV === 'development' && notifications.length === 0 && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      Debug: Notifications source: {studentData.student?.notifications ? 'User data' : 'Separate API call'}
+                    </p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Progress Charts */}

@@ -146,10 +146,22 @@ const TeacherClassView = () => {
 
   const handleCreateAssignment = async (assignmentData) => {
     try {
+      // First get all students in the class
+      const studentsResponse = await api.get(`/class/classes/${classId}/students`);
+      const students = studentsResponse.data.students || [];
+      
+      // Create student repo entries for each student
+      const studentRepos = students.map(student => ({
+        studentId: student._id,
+        submitted: false
+      }));
+      
+      // Add student repos to assignment data
       const response = await api.post('/assignment/create', {
         ...assignmentData,
         classId,
-        teacherId: user._id
+        teacherId: user._id,
+        studentRepos: studentRepos
       });
       
       if (response.data.success) {

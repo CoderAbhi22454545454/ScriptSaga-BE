@@ -13,20 +13,78 @@ const StudentAssignmentView = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const user = useSelector((state) => state.auth.user);
+  const studentData = useSelector((state) => state.student);
 
   useEffect(() => {
     fetchAssignments();
   }, []);
 
   const fetchAssignments = async () => {
+    if (!user?._id) return;
+    
     try {
       setLoading(true);
+      console.log("Fetching assignments for student ID:", user._id);
+      
+      // First try to get assignments directly associated with the student
       const response = await api.get(`/assignment/student/${user._id}`);
       
-      if (response.data.success) {
+      if (response.data.success && response.data.assignments?.length > 0) {
+        console.log("Found assignments directly associated with student:", response.data.assignments);
         setAssignments(response.data.assignments);
       } else {
-        toast.error('Failed to fetch assignments');
+        console.log("No assignments found for student, checking class assignments");
+        
+        // If no assignments found, try to get assignments for the student's class
+        if (studentData.student?.classId) {
+          const classId = Array.isArray(studentData.student.classId) 
+            ? studentData.student.classId[0]
+            : studentData.student.classId;
+            
+          console.log("Fetching assignments for class:", classId);
+          
+          // Try to fetch assignments for the student's class
+          const classResponse = await api.get(`/assignment/${classId}`);
+          
+          if (classResponse.data.success && classResponse.data.assignments) {
+            console.log("Found class assignments:", classResponse.data.assignments);
+            
+            // Process assignments to add empty studentRepo entries if needed
+            const processedAssignments = classResponse.data.assignments.map(assignment => {
+              // Create a copy of the assignment to avoid mutating the original
+              const assignmentCopy = {...assignment};
+              
+              // If student doesn't have a repo entry yet, add a placeholder
+              const hasStudentRepo = assignmentCopy.studentRepos?.some(
+                repo => repo.studentId._id === user._id
+              );
+              
+              if (!hasStudentRepo) {
+                if (!assignmentCopy.studentRepos) {
+                  assignmentCopy.studentRepos = [];
+                }
+                
+                assignmentCopy.studentRepos.push({
+                  studentId: { 
+                    _id: user._id,
+                    firstName: studentData.student.firstName,
+                    lastName: studentData.student.lastName
+                  },
+                  submitted: false
+                });
+              }
+              
+              return assignmentCopy;
+            });
+            
+            console.log("Processed assignments with student repos:", processedAssignments);
+            setAssignments(processedAssignments);
+          } else {
+            console.log("No class assignments found");
+          }
+        } else {
+          console.log("Student has no class ID");
+        }
       }
     } catch (error) {
       console.error('Error fetching assignments:', error);
