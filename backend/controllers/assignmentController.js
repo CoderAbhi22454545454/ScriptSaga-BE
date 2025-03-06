@@ -5,8 +5,13 @@ import GitHubService from '../utils/githubService.js';
 
 export const createAssignment = async (req, res) => {
   try {
+    console.log('Request body:', req.body);
+    console.log('User from auth middleware:', req.user);
+    
     const { title, description, dueDate, points, templateRepo, repoName, classId } = req.body;
-    const teacherId = req.user._id;
+    const teacherId = req.user?.userId;
+    
+    console.log('Teacher ID:', teacherId);
 
     // Get teacher's GitHub credentials
     const teacher = await User.findById(teacherId);
@@ -66,15 +71,20 @@ export const createAssignment = async (req, res) => {
 export const getClassAssignments = async (req, res) => {
   try {
     const { classId } = req.params;
+    console.log('Fetching assignments for class:', classId);
+    
     const assignments = await Assignment.find({ classId })
       .populate('teacherId', 'firstName lastName')
       .sort({ createdAt: -1 });
-
+    
+    console.log('Found assignments:', assignments.length);
+    
     res.json({
       success: true,
       assignments
     });
   } catch (error) {
+    console.error('Error in getClassAssignments:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -151,6 +161,96 @@ export const deleteAssignment = async (req, res) => {
       message: 'Assignment deleted successfully'
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const getStudentAssignments = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    // Find all assignments where the student has a repository
+    const assignments = await Assignment.find({
+      'studentRepos.studentId': studentId
+    })
+    .populate('classId', 'name')
+    .populate('teacherId', 'firstName lastName')
+    .populate('studentRepos.studentId', 'firstName lastName rollNo')
+    .sort({ dueDate: 1 });
+    
+    res.json({
+      success: true,
+      assignments
+    });
+  } catch (error) {
+    console.error('Error in getStudentAssignments:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const submitAssignment = async (req, res) => {
+  try {
+    const { assignmentId, studentId } = req.body;
+    
+    const assignment = await Assignment.findById(assignmentId);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found'
+      });
+    }
+    
+    // Find the student's repo in the assignment
+    const studentRepoIndex = assignment.studentRepos.findIndex(
+      repo => repo.studentId.toString() === studentId
+    );
+    
+    if (studentRepoIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student repository not found for this assignment'
+      });
+    }
+    
+    // Update the submission status
+    assignment.studentRepos[studentRepoIndex].submitted = true;
+    assignment.studentRepos[studentRepoIndex].submissionDate = new Date();
+    
+    await assignment.save();
+    
+    res.json({
+      success: true,
+      message: 'Assignment marked as submitted'
+    });
+  } catch (error) {
+    console.error('Error in submitAssignment:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+export const getAllAssignments = async (req, res) => {
+  try {
+    const assignments = await Assignment.find()
+      .populate('classId', 'name')
+      .populate('teacherId', 'firstName lastName')
+      .populate('studentRepos.studentId', 'firstName lastName rollNo')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      assignments
+    });
+  } catch (error) {
+    console.error('Error in getAllAssignments:', error);
     res.status(500).json({
       success: false,
       message: error.message

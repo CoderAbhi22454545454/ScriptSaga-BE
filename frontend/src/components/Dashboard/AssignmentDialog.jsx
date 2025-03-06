@@ -18,7 +18,7 @@ const AssignmentDialog = ({ isOpen, setIsOpen, onSubmit }) => {
     dueDate: "",
     repoName: "",
     templateRepo: "", // Format: organization/repo-name
-    points: "0"
+    points: "10"
   });
 
   const handleSubmit = async (e) => {
@@ -38,89 +38,107 @@ const AssignmentDialog = ({ isOpen, setIsOpen, onSubmit }) => {
       dueDate: "",
       repoName: "",
       templateRepo: "",
-      points: "0"
+      points: "10"
     });
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Create New Assignment</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="title">Assignment Title</Label>
             <Input
               id="title"
+              name="title"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={handleChange}
               required
             />
           </div>
-
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
+              name="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={handleChange}
               required
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="repoName">Repository Name</Label>
-            <Input
-              id="repoName"
-              value={formData.repoName}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                repoName: e.target.value.toLowerCase().replace(/\s+/g, '-')
-              })}
-              required
-              placeholder="e.g., assignment-1"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="templateRepo">Template Repository</Label>
-            <Input
-              id="templateRepo"
-              value={formData.templateRepo}
-              onChange={(e) => setFormData({ ...formData, templateRepo: e.target.value })}
-              required
-              placeholder="organization/repo-name"
-            />
-            <p className="text-sm text-gray-500">
-              Format: organization/repo-name (e.g., your-org/assignment-template)
-            </p>
-          </div>
-
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="dueDate">Due Date</Label>
             <Input
               id="dueDate"
+              name="dueDate"
               type="datetime-local"
               value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              onChange={handleChange}
               required
             />
           </div>
-
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="points">Points</Label>
             <Input
               id="points"
+              name="points"
               type="number"
               min="0"
               value={formData.points}
-              onChange={(e) => setFormData({ ...formData, points: e.target.value })}
+              onChange={handleChange}
               required
             />
           </div>
-
-          <Button type="submit">Create Assignment</Button>
+          <div>
+            <Label htmlFor="templateRepo">
+              Template Repository (format: organization/repo-name)
+            </Label>
+            <div className="flex items-center">
+              <span className="bg-gray-100 px-3 py-2 border border-r-0 rounded-l-md text-gray-500">
+                https://github.com/
+              </span>
+              <Input
+                id="templateRepo"
+                name="templateRepo"
+                value={formData.templateRepo}
+                onChange={handleChange}
+                className="rounded-l-none"
+                placeholder="organization/repo-name"
+                required
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              This should be a template repository that will be used to create student repositories
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="repoName">Repository Name Base</Label>
+            <Input
+              id="repoName"
+              name="repoName"
+              value={formData.repoName}
+              onChange={handleChange}
+              placeholder="assignment-1"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Student repositories will be created as: {formData.repoName}-{"{student-roll-no}"}
+            </p>
+          </div>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Create Assignment</Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

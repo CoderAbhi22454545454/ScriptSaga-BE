@@ -1,5 +1,6 @@
 import { User } from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
+import { Assignment } from '../models/Assignment.model.js';
 
 export const createTeacher = async (req, res) => {
   try {
@@ -102,6 +103,64 @@ export const addTeacherFeedback = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error sending feedback',
+      error: error.message
+    });
+  }
+};
+
+export const getTeacherStats = async (req, res) => {
+  try {
+    const teacherId = req.params.teacherId;
+    
+    // Get teacher with populated class data
+    const teacher = await User.findById(teacherId)
+      .populate({
+        path: 'classId',
+        populate: {
+          path: 'students assignments',
+          select: '-password'
+        }
+      });
+
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: 'Teacher not found'
+      });
+    }
+
+    // Calculate stats
+    let totalStudents = 0;
+    let totalAssignments = 0;
+    let upcomingAssignments = 0;
+    const now = new Date();
+
+    teacher.classId.forEach(cls => {
+      // Count students
+      totalStudents += cls.students?.length || 0;
+      
+      // Count assignments
+      if (cls.assignments) {
+        totalAssignments += cls.assignments.length;
+        upcomingAssignments += cls.assignments.filter(assignment => 
+          new Date(assignment.dueDate) > now
+        ).length;
+      }
+    });
+
+    res.json({
+      success: true,
+      stats: {
+        totalStudents,
+        totalAssignments,
+        upcomingAssignments,
+        recentNotifications: teacher.notifications?.slice(-5) || []
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching teacher stats',
       error: error.message
     });
   }

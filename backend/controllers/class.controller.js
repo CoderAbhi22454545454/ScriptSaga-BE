@@ -232,8 +232,18 @@ export const getTeacherClasses = async (req, res) => {
     const teacherId = req.params.teacherId;
     
     const teacher = await User.findById(teacherId)
-      .populate('classId')
-      .select('classId');
+      .populate({
+        path: 'classId',
+        populate: [
+          {
+            path: 'students',
+            select: '-password'
+          },
+          {
+            path: 'assignments'
+          }
+        ]
+      });
     
     if (!teacher) {
       return res.status(404).json({
@@ -242,11 +252,33 @@ export const getTeacherClasses = async (req, res) => {
       });
     }
 
+    // Calculate additional stats for each class
+    const classesWithStats = teacher.classId.map(cls => {
+      const activeAssignments = cls.assignments?.filter(assignment => 
+        new Date(assignment.dueDate) > new Date()
+      ).length || 0;
+
+      const totalSubmissions = cls.assignments?.reduce((acc, assignment) => 
+        acc + (assignment.submissions?.length || 0), 0) || 0;
+      
+      const totalPossibleSubmissions = (cls.assignments?.length || 0) * (cls.students?.length || 0);
+      const completionRate = totalPossibleSubmissions > 0 
+        ? Math.round((totalSubmissions / totalPossibleSubmissions) * 100) 
+        : 0;
+
+      return {
+        ...cls.toObject(),
+        activeAssignments,
+        completionRate
+      };
+    });
+
     res.json({
       success: true,
-      classes: teacher.classId
+      classes: classesWithStats || []
     });
   } catch (error) {
+    console.error('Error in getTeacherClasses:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching teacher classes',

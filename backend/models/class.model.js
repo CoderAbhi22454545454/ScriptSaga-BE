@@ -21,6 +21,14 @@ const classSchema = new mongoose.Schema({
     students: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    }],
+    assignments: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Assignment'
+    }],
+    feedback: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Feedback'
     }]
 }, { timestamps: true });
 

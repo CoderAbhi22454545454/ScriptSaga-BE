@@ -35,6 +35,7 @@ import {
   PieChart as PieChartIcon,
   ListOrdered,
 } from "lucide-react";
+import MessageStudent from "../../MessageStudent";
 
 const StudentDetailGit = () => {
   const { userId } = useParams();
@@ -319,6 +320,8 @@ const StudentDetailGit = () => {
       
             </CardContent>
           </Card>
+
+          <MessageStudent studentId={student._id} />
 
           <Card>
             <CardHeader>

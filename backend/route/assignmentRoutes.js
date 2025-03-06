@@ -1,20 +1,26 @@
 import express from 'express';
-import authMiddleware from '../middelwares/auth.js';
+import authMiddelware from '../middelwares/auth.js';
 
 import { 
   createAssignment, 
   getClassAssignments,
   getAssignment,
   updateAssignment,
-  deleteAssignment 
+  deleteAssignment,
+  getStudentAssignments,
+  submitAssignment,
+  getAllAssignments
 } from '../controllers/assignmentController.js';
 
 const router = express.Router();
 
-router.post('/create', authMiddleware, createAssignment);
-router.get('/:classId', authMiddleware, getClassAssignments);
-router.get('/:id', authMiddleware, getAssignment);
-router.put('/:id', authMiddleware, updateAssignment);
-router.delete('/:id', authMiddleware, deleteAssignment);
+router.post('/create', authMiddelware, createAssignment);
+router.get('/assignment/:id', authMiddelware, getAssignment);
+router.get('/:classId', authMiddelware, getClassAssignments);
+router.put('/:id', authMiddelware, updateAssignment);
+router.delete('/:id', authMiddelware, deleteAssignment);
+router.get('/student/:studentId', authMiddelware, getStudentAssignments);
+router.post('/submit', authMiddelware, submitAssignment);
+router.get('/all', authMiddelware,  getAllAssignments);
 
 export default router;

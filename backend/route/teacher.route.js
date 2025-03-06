@@ -1,10 +1,11 @@
 import express from 'express';
-import { createTeacher, addTeacherFeedback } from '../controllers/teacher.controller.js';
-import authMiddleware from '../middlewares/auth.js';
+import { createTeacher, addTeacherFeedback, getTeacherStats } from '../controllers/teacher.controller.js';
+import authMiddelware from '../middelwares/auth.js';
 
 const router = express.Router();
 
-router.post('/create', authMiddleware, createTeacher);
-router.post('/feedback', authMiddleware, addTeacherFeedback);
+router.post('/create', authMiddelware, createTeacher);
+router.post('/feedback', authMiddelware, addTeacherFeedback);
+router.get('/:teacherId/stats', authMiddelware, getTeacherStats);
 
 export default router;
