@@ -14,12 +14,12 @@ dotenv.config()
 const app = express()
 
 // Middelwares
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser())
 
 app.use(cors({
-    origin: 'http://localhost:5173', // or the port where your React app is running
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
     credentials: true,
 }));
 

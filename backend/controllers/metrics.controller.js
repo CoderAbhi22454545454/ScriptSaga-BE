@@ -8,54 +8,60 @@ export const updateMetrics = async (req, res) => {
     const { userId } = req.params;
     const { repos, leetcode } = req.body;
 
+    // Check if metrics already exist
+    const existingMetrics = await StudentMetrics.findOne({ userId });
+    if (existingMetrics) {
+      return res.status(200).json({
+        success: true,
+        message: 'Metrics already exist',
+        metrics: existingMetrics
+      });
+    }
+
     const githubMetrics = calculateGitHubMetrics(repos);
     const leetcodeMetrics = calculateLeetCodeMetrics(leetcode);
 
-    const metrics = await StudentMetrics.findOneAndUpdate(
-      { userId },
-      {
-        userId,
-        github: {
-          repositories: {
-            total: repos?.length || 0,
-            active: repos?.filter(r => r.commits?.length > 0).length || 0,
-            recentlyActive: githubMetrics.raw.recentActivity.repositories.size
-          },
-          commits: {
-            total: repos?.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0) || 0,
-            recent90Days: githubMetrics.raw.recentActivity.commits
-          },
-          activity: {
-            score: githubMetrics.scores.activity,
-            activeDays: Array.from(githubMetrics.raw.recentActivity.activeDays),
-            activeRepos: Array.from(githubMetrics.raw.recentActivity.repositories),
-            lastCommitDate: new Date()
-          },
-          codeQuality: {
-            score: githubMetrics.scores.quality,
-            commitPatterns: githubMetrics.raw.codeQuality
-          },
-          impact: {
-            score: githubMetrics.scores.impact,
-            stars: githubMetrics.raw.impact.totalStars,
-            forks: githubMetrics.raw.impact.totalForks
-          },
-          languages: processLanguages(repos),
-          careerInsights: githubMetrics.careerInsights,
-          suggestions: githubMetrics.suggestions
+    const metrics = await StudentMetrics.create({
+      userId,
+      github: {
+        repositories: {
+          total: repos?.length || 0,
+          active: repos?.filter(r => r.commits?.length > 0).length || 0,
+          recentlyActive: githubMetrics.raw.recentActivity.repositories.size || 0
         },
-        leetcode: leetcodeMetrics?.raw || null,
-        lastUpdated: new Date()
+        commits: {
+          total: repos?.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0) || 0,
+          recent90Days: githubMetrics.raw.recentActivity.commits || 0
+        },
+        activity: {
+          score: githubMetrics.scores.activity || 0,
+          activeDays: Array.from(githubMetrics.raw.recentActivity.activeDays || [])
+        },
+        impact: {
+          score: githubMetrics.scores.impact || 0,
+          stars: githubMetrics.raw.impact.totalStars || 0,
+          forks: githubMetrics.raw.impact.totalForks || 0
+        }
       },
-      { upsert: true, new: true }
-    );
+      leetcode: leetcodeMetrics ? {
+        problemsSolved: {
+          total: leetcodeMetrics.problemSolving?.total || 0,
+          easy: leetcodeMetrics.problemSolving?.easy || 0,
+          medium: leetcodeMetrics.problemSolving?.medium || 0,
+          hard: leetcodeMetrics.problemSolving?.hard || 0
+        },
+        ranking: leetcodeMetrics.consistency?.ranking || 0
+      } : null,
+      lastUpdated: new Date()
+    });
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
+      message: 'Metrics created successfully',
       metrics
     });
   } catch (error) {
-    console.error('Metrics Update Error:', error);
+    console.error('Metrics Error:', error);
     res.status(500).json({
       success: false,
       message: 'Error updating metrics',

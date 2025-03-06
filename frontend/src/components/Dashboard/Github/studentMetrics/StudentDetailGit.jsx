@@ -41,12 +41,11 @@ const StudentDetailGit = () => {
   const [student, setStudent] = useState();
   const [classData, setClassData] = useState();
   const [studentRepos, setStudentRepos] = useState([]);
-  const [studentLeetCode, setStudentLeetCode] = useState({});
+  const [studentLeetCode, setStudentLeetCode] = useState(null);
   const [repoPage, setRepoPage] = useState(1);
   const [commitPage, setCommitPage] = useState(1);
   const [hasMoreRepos, setHasMoreRepos] = useState(true);
   const [selectedRepo, setSelectedRepo] = useState(null);
-  const [githubRepos, setGithubRepos] = useState([]);
   const [commitFrequency, setCommitFrequency] = useState([]);
   const [languageUsage, setLanguageUsage] = useState({});
   const [mostActiveRepos, setMostActiveRepos] = useState([]);
@@ -57,73 +56,73 @@ const StudentDetailGit = () => {
   const [isLoadingCommits, setIsLoadingCommits] = useState(false);
   const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState(null);
+  const [dataFetched, setDataFetched] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchAllData = async () => {
+      if (dataFetched) return;
+      
       try {
         setLoading(true);
         setError(null);
+
+        const studentData = await fetchStudentData(userId);
+        if (!isMounted) return;
         
-        // Fetch student data
-        const studentResponse = await api.get(`/user/${userId}`);
-        if (!studentResponse.data.success) {
-          throw new Error(studentResponse.data.message || 'Failed to fetch student details');
-        }
-        
-        const studentData = studentResponse.data.user;
         setStudent(studentData);
-        setClassData(studentData.classId);
-        
-        // Fetch GitHub repositories
-        const reposResponse = await api.get(`/github/${userId}/repos`);
-        if (!reposResponse.data.success) {
-          throw new Error('Failed to fetch GitHub repositories');
-        }
-        
-        const repos = reposResponse.data.repos;
-        setStudentRepos(repos);
-        
-        // Process GitHub metrics
-        if (repos.length > 0) {
-          setCommitFrequency(processCommitFrequency(repos, startDate, endDate));
-          setLanguageUsage(processLanguageUsage(repos));
-          setMostActiveRepos(getMostActiveRepos(repos));
-        }
-        
-        // Fetch LeetCode data if available
-        let leetCodeData = null;
-        if (studentData.leetCodeID) {
-          const leetCodeResponse = await api.get(`/lcodeprofile/${userId}`);
-          leetCodeData = leetCodeResponse.data;
-          setStudentLeetCode(leetCodeData);
+        setClassData(studentData.classId[0]);
+
+        if (studentData.githubID) {
+          const repos = await fetchGithubRepos(userId);
+          if (!isMounted) return;
+          
+          setStudentRepos(repos);
+          
+          if (repos.length > 0) {
+            setCommitFrequency(processCommitFrequency(repos, startDate, endDate));
+            setLanguageUsage(processLanguageUsage(repos));
+            setMostActiveRepos(getMostActiveRepos(repos));
+          }
+
+          const metricsData = await updateMetrics(
+            userId, 
+            repos, 
+            studentData.leetCodeID ? await fetchLeetCodeData(userId) : null
+          );
+          if (!isMounted) return;
+          setMetrics(metricsData);
         }
 
-        // Update metrics with both GitHub and LeetCode data
-        const metricsResponse = await api.post(`/metrics/${userId}/update`, {
-          repos: repos,
-          leetcode: leetCodeData
-        });
-
-        if (!metricsResponse.data.success) {
-          throw new Error('Failed to update metrics');
-        }
-
-        // Store metrics in state
-        setMetrics(metricsResponse.data.metrics);
-        
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setError(error.message);
-        toast.error(error.message);
+        if (isMounted) {
+          console.error('Error fetching data:', error);
+          setError(error.message);
+          toast.error(error.message);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setDataFetched(true);
+        }
       }
     };
 
     console.log("Fetching all data for userId:", userId);
     console.log(fetchAllData());
     fetchAllData();
-  }, [userId, startDate, endDate]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (studentRepos.length > 0) {
+      setCommitFrequency(processCommitFrequency(studentRepos, startDate, endDate));
+    }
+  }, [studentRepos, startDate, endDate]);
 
   const processCommitFrequency = (repos, start, end) => {
     const commitCounts = {};
@@ -207,6 +206,40 @@ const StudentDetailGit = () => {
     }
   };
 
+  const fetchLeetCodeData = async (userId) => {
+    try {
+      const response = await api.get(`/lcodeprofile/${userId}`);
+      if (!response.data) {
+        throw new Error('No LeetCode data received');
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching LeetCode data:', error);
+      toast.error('Failed to fetch LeetCode data');
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!userId) return;
+      
+      try {
+        setLoading(true);
+        const leetCodeData = await fetchLeetCodeData(userId);
+        if (leetCodeData) {
+          setStudentLeetCode(leetCodeData);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [userId]);
+
   if (!student)
     return (
       <div className="flex justify-center items-center h-screen">
@@ -271,15 +304,16 @@ const StudentDetailGit = () => {
                 </p>
                 <p>
                   <span className="font-semibold">Year of Study:</span>{" "}
-                  {student.classId.yearOfStudy || "No class found"}
-                </p>
+                  {/* Class: {classData?.className} | Branch: {classData?.branch} | Division: {classData?.division} */}
+                  {student.classId[0].className || "Student not in any class"}
+                  </p>
                 <p>
                   <span className="font-semibold">Branch:</span>{" "}
-                  {student.classId.branch || "No class found"}
+                  {student.classId[0].branch || "Student not in any class"}
                 </p>
                 <p>
                   <span className="font-semibold">Division:</span>{" "}
-                  {student.classId.division || "No class found"}
+                  {student.classId[0].division || "Student not in any class"}
                 </p>
               </div>
       
@@ -782,4 +816,129 @@ const ProgressMetric = ({ label, value, total }) => (
     </div>
   </div>
 );
+
+const fetchStudentData = async (userId) => {
+  const response = await api.get(`/user/${userId}`);
+  if (!response.data.success) {
+    throw new Error(response.data.message || 'Failed to fetch student details');
+  }
+  return response.data.user;
+};
+
+const fetchGithubRepos = async (userId) => {
+  const response = await api.get(`/github/${userId}/repos`);
+  if (!response.data.success) {
+    throw new Error('Failed to fetch GitHub repositories');
+  }
+  return response.data.repos;
+};
+
+const updateMetrics = async (userId, repos, leetcode) => {
+  const response = await api.post(`/metrics/${userId}/update`, {
+    repos,
+    leetcode
+  });
+  if (!response.data.success) {
+    throw new Error('Failed to update metrics');
+  }
+  return response.data.metrics;
+};
+
+const LeetCodeSection = ({ leetcodeData }) => {
+  if (!leetcodeData || !leetcodeData.completeProfile) {
+    return null;
+  }
+
+
+
+  const { completeProfile, basicProfile, contests } = leetcodeData;
+  const totalSolved = completeProfile.solvedProblem || 0;
+
+  return (
+    <div className="mt-6">
+      <h2 className="text-2xl font-bold mb-4">LeetCode Statistics</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Problem Solving</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span>Total Solved</span>
+                <span className="font-bold">{totalSolved}</span>
+              </div>
+              <ProgressMetric 
+                label="Easy" 
+                value={completeProfile.easySolved || 0} 
+                total={totalSolved}
+                color="bg-green-500"
+              />
+              <ProgressMetric 
+                label="Medium" 
+                value={completeProfile.mediumSolved || 0} 
+                total={totalSolved}
+                color="bg-yellow-500"
+              />
+              <ProgressMetric 
+                label="Hard" 
+                value={completeProfile.hardSolved || 0} 
+                total={totalSolved}
+                color="bg-red-500"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Info</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Username</span>
+                <span className="font-bold">{basicProfile.username}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Global Ranking</span>
+                <span className="font-bold">{basicProfile.ranking?.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Reputation</span>
+                <span className="font-bold">{basicProfile.reputation}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Activity Calendar</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-48">
+              {leetcodeData.calender?.submissionCalendar && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={Object.entries(JSON.parse(leetcodeData.calender.submissionCalendar))
+                      .map(([date, count]) => ({
+                        date: new Date(parseInt(date) * 1000).toLocaleDateString(),
+                        submissions: count
+                      }))}
+                  >
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="submissions" stroke="#8884d8" />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
 

@@ -18,35 +18,13 @@ const studentMetricsSchema = new mongoose.Schema({
     },
     activity: {
       score: Number,
-      activeDays: [String],
-      activeRepos: [String],
-      lastCommitDate: Date
-    },
-    codeQuality: {
-      score: Number,
-      commitPatterns: {
-        averageSize: Number,
-        consistency: Number
-      }
+      activeDays: [String]
     },
     impact: {
       score: Number,
       stars: Number,
       forks: Number
-    },
-    languages: [{
-      name: String,
-      repoCount: Number,
-      percentage: Number
-    }],
-    careerInsights: {
-      topDomains: [String],
-      recommendedPaths: [String]
-    },
-    suggestions: [{
-      category: String,
-      points: [String]
-    }]
+    }
   },
   leetcode: {
     problemsSolved: {
@@ -55,16 +33,7 @@ const studentMetricsSchema = new mongoose.Schema({
       medium: Number,
       hard: Number
     },
-    submissions: {
-      total: Number,
-      acceptanceRate: Number
-    },
-    ranking: Number,
-    contestRating: Number,
-    badges: [{
-      name: String,
-      category: String
-    }]
+    ranking: Number
   },
   lastUpdated: {
     type: Date,

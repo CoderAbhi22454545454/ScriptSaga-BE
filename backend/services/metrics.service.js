@@ -1,12 +1,10 @@
 import { StudentMetrics } from '../models/studentMetrics.model.js';
 
 const calculateActivityScore = (metrics) => {
-  return Math.min(
-    ((metrics.recentActivity.commits / 90) * 40 +
-    (metrics.recentActivity.activeDays.size / 90) * 30 +
-    (metrics.recentActivity.repositories.size / 5) * 30),
-    100
-  );
+  // Simple scoring logic - can be enhanced
+  const daysActive = metrics.recentActivity.activeDays.size;
+  const recentCommits = metrics.recentActivity.commits;
+  return Math.min(100, ((daysActive * 3) + (recentCommits * 2)) / 5);
 };
 
 const calculateCodeQualityScore = (metrics) => {
@@ -17,9 +15,10 @@ const calculateCodeQualityScore = (metrics) => {
 };
 
 const calculateImpactScore = (metrics) => {
-  const starsScore = Math.min((metrics.impact.totalStars * 2), 50);
-  const forksScore = Math.min((metrics.impact.totalForks * 5), 50);
-  return Math.min(starsScore + forksScore, 100);
+  // Simple scoring logic - can be enhanced
+  const stars = metrics.impact.totalStars;
+  const forks = metrics.impact.totalForks;
+  return Math.min(100, ((stars * 3) + (forks * 2)) / 5);
 };
 
 const processLanguages = (repos) => {
@@ -105,6 +104,26 @@ const generateSuggestions = (scores) => {
 };
 
 export const calculateGitHubMetrics = (repos) => {
+  if (!repos || !Array.isArray(repos)) {
+    return {
+      raw: {
+        recentActivity: {
+          commits: 0,
+          activeDays: new Set(),
+          repositories: new Set()
+        },
+        impact: {
+          totalStars: 0,
+          totalForks: 0
+        }
+      },
+      scores: {
+        activity: 0,
+        impact: 0
+      }
+    };
+  }
+
   const now = new Date();
   const ninetyDaysAgo = new Date(now.setDate(now.getDate() - 90));
   
@@ -112,64 +131,36 @@ export const calculateGitHubMetrics = (repos) => {
     recentActivity: {
       commits: 0,
       activeDays: new Set(),
-      repositories: new Set(),
-    },
-    codeQuality: {
-      averageCommitSize: 0,
-      consistencyScore: 0,
-      languageDiversity: 0,
+      repositories: new Set()
     },
     impact: {
       totalStars: 0,
-      totalForks: 0,
-      contributionStreak: 0,
+      totalForks: 0
     }
   };
 
-  if (!repos || repos.length === 0) {
-    return {
-      raw: metrics,
-      scores: {
-        activity: 0,
-        quality: 0,
-        impact: 0
-      }
-    };
-  }
-
-  // Process each repository
   repos.forEach(repo => {
-    if (!repo.commits) return;
+    if (repo.commits && Array.isArray(repo.commits)) {
+      repo.commits.forEach(commit => {
+        const commitDate = new Date(commit.date);
+        if (commitDate >= ninetyDaysAgo) {
+          metrics.recentActivity.commits++;
+          metrics.recentActivity.activeDays.add(commit.date.split('T')[0]);
+          metrics.recentActivity.repositories.add(repo.name);
+        }
+      });
+    }
 
-    // Recent Activity
-    repo.commits.forEach(commit => {
-      const commitDate = new Date(commit.date);
-      if (commitDate >= ninetyDaysAgo) {
-        metrics.recentActivity.commits++;
-        metrics.recentActivity.activeDays.add(commit.date.split('T')[0]);
-        metrics.recentActivity.repositories.add(repo.name);
-      }
-    });
-
-    // Impact Metrics
     metrics.impact.totalStars += repo.stargazers_count || 0;
     metrics.impact.totalForks += repo.forks_count || 0;
   });
 
-  const scores = {
-    activity: Math.round(calculateActivityScore(metrics)),
-    quality: Math.round(calculateCodeQualityScore(metrics)),
-    impact: Math.round(calculateImpactScore(metrics))
-  };
-
-  const careerInsights = generateCareerInsights(repos);
-  const suggestions = generateSuggestions(scores);
-
   return {
     raw: metrics,
-    scores,
-    careerInsights,
-    suggestions
+    scores: {
+      activity: calculateActivityScore(metrics) || 0,
+      impact: calculateImpactScore(metrics) || 0
+    }
   };
 };
 
@@ -206,6 +197,7 @@ export const updateStudentMetrics = async (userId, repos, leetcode) => {
   const githubMetrics = calculateGitHubMetrics(repos);
   const leetcodeMetrics = calculateLeetCodeMetrics(leetcode);
   
+  // Simplified metrics structure
   const metrics = {
     userId,
     github: {
@@ -220,27 +212,23 @@ export const updateStudentMetrics = async (userId, repos, leetcode) => {
       },
       activity: {
         score: githubMetrics.scores.activity,
-        activeDays: Array.from(githubMetrics.raw.recentActivity.activeDays),
-        activeRepos: Array.from(githubMetrics.raw.recentActivity.repositories),
-        lastCommitDate: new Date()
-      },
-      codeQuality: {
-        score: githubMetrics.scores.quality,
-        commitPatterns: {
-          averageSize: githubMetrics.raw.codeQuality.averageCommitSize,
-          consistency: githubMetrics.raw.codeQuality.consistencyScore
-        }
+        activeDays: Array.from(githubMetrics.raw.recentActivity.activeDays)
       },
       impact: {
         score: githubMetrics.scores.impact,
         stars: githubMetrics.raw.impact.totalStars,
         forks: githubMetrics.raw.impact.totalForks
-      },
-      languages: processLanguages(repos),
-      careerInsights: githubMetrics.careerInsights,
-      suggestions: githubMetrics.suggestions
+      }
     },
-    leetcode: leetcodeMetrics?.raw || null,
+    leetcode: leetcodeMetrics ? {
+      problemsSolved: {
+        total: leetcodeMetrics.problemSolving.total,
+        easy: leetcodeMetrics.problemSolving.easy,
+        medium: leetcodeMetrics.problemSolving.medium,
+        hard: leetcodeMetrics.problemSolving.hard
+      },
+      ranking: leetcodeMetrics.consistency.ranking
+    } : null,
     lastUpdated: new Date()
   };
 
