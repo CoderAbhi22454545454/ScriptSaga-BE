@@ -419,7 +419,7 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleSubmitAssignment = async (assignmentId, repoUrl) => {
+  const handleSubmitAssignment = async (assignmentId) => {
     try {
       const response = await api.post('/assignment/submit', {
         assignmentId,
@@ -867,7 +867,7 @@ const StudentDashboard = () => {
                             )}
                           </div>
                           
-                          <div className="flex space-x-2 mt-4">
+                          <div className="flex flex-col space-y-2">
                             {/* Template Repository Button */}
                             {templateRepoUrl && (
                               <Button variant="outline" className="flex items-center" asChild>
@@ -891,7 +891,7 @@ const StudentDashboard = () => {
                             {!studentRepo?.submitted && (
                               <Button 
                                 size="sm"
-                                onClick={() => handleSubmitAssignment(assignment._id, studentRepo?.repoUrl)}
+                                onClick={() => handleSubmitAssignment(assignment._id)}
                                 className="bg-green-600 hover:bg-green-700"
                               >
                                 Mark as Submitted
