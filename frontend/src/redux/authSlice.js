@@ -1,6 +1,8 @@
 // authSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 import api from "@/constants/constant";
+import { PURGE } from "redux-persist";
+
 const authSlice = createSlice({
     name: "auth",
     initialState: {
@@ -18,6 +20,15 @@ const authSlice = createSlice({
             state.user = null;
         },
     },
+    extraReducers: (builder) => {
+        builder.addCase(PURGE, (state) => {
+            // This will be called when the persistor is purged
+            return {
+                loading: false,
+                user: null,
+            };
+        });
+    },
 });
 
 export const { setLoading, setUser, logoutUser } = authSlice.actions;
@@ -26,13 +37,16 @@ export default authSlice.reducer;
 export const logout = () => async (dispatch) => {
     try {
         await api.post("/user/logout");
-        dispatch(logoutUser());
-        window.location.href = "/login"; // Redirect to login
+        
+        // Clear localStorage items
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        setUser(null);
-
         
+        // Dispatch the logout action to update Redux state
+        dispatch(logoutUser());
+        
+        // Redirect to login page
+        window.location.href = "/login";
     } catch (error) {
         console.error("Logout error:", error);
     }

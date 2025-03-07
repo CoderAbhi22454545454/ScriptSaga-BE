@@ -72,34 +72,71 @@ export const getGithubUserRepos = async (githubID) => {
 
 // Fetch commits for a specific repo
 export const getGithubRepoCommits = async (githubID, repoName) => {
-    console.log("Fetching commits for:", githubID, repoName);
-  
-    try {
-      const response = await githubApi.get(`/repos/${githubID}/${repoName}/commits`, {
-        params: {
-          per_page: 100,
-          page: 1,
-        }
-      });
-  
-      const commits = response.data.map(commit => ({
-        message: commit.commit.message,
-        date: commit.commit.author.date,
-        url: commit.html_url,
-      }));
-  
-      return {
-        commits: commits,
+  console.log("Fetching commits for:", githubID, repoName);
+
+  try {
+    const response = await githubApi.get(`/repos/${githubID}/${repoName}/commits`, {
+      params: {
+        per_page: 100,
+        page: 1,
+      },
+      timeout: 10000 // 10 second timeout
+    });
+
+    const commits = response.data.map(commit => ({
+      message: commit.commit.message,
+      date: commit.commit.author.date,
+      url: commit.html_url,
+      author: commit.commit.author.name,
+      sha: commit.sha
+    }));
+
+    return {
+      commits: commits,
+      success: true
+    };
+  } catch (error) {
+    // Handle empty repository case
+    if (error.response && error.response.status === 409) {
+      console.log(`Repository ${repoName} is empty.`);
+      return { 
+        commits: [], 
+        success: true, 
+        isEmptyRepo: true 
       };
-    } catch (error) {
-      if (error.response && error.response.status === 409) {
-        console.log(`Repository ${repoName} is empty.`);
-        return { commits: [] };
-      }
-      console.error('Error fetching commits:', error);
-      throw error;
     }
-  };
+    
+    // Handle rate limiting
+    if (error.response && error.response.status === 403 && 
+        error.response.data.message.includes('rate limit')) {
+      console.log(`GitHub API rate limit exceeded for ${githubID}`);
+      return { 
+        commits: [], 
+        success: false, 
+        error: 'GitHub API rate limit exceeded. Please try again later.',
+        isRateLimited: true
+      };
+    }
+    
+    // Handle repository not found
+    if (error.response && error.response.status === 404) {
+      console.log(`Repository ${repoName} not found for user ${githubID}`);
+      return { 
+        commits: [], 
+        success: false, 
+        error: 'Repository not found',
+        isNotFound: true
+      };
+    }
+    
+    console.error('Error fetching commits:', error);
+    return { 
+      commits: [], 
+      success: false, 
+      error: error.response?.data?.message || 'Failed to fetch GitHub data'
+    };
+  }
+};
 
 export const getGithubUserProfile = async (githubID) => {
     try {

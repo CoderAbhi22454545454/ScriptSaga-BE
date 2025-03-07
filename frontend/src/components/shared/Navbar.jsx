@@ -20,6 +20,7 @@ import {
   School,
   BookOpen,
   Users,
+  Github,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -216,6 +217,12 @@ export function Navbar({ children }) {
                 <Link to="/student" className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100">
                   <Home className="h-5 w-5" />
                   <span>Dashboard</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/student/github-learning" className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100">
+                  <Github className="h-5 w-5" />
+                  <span>GitHub Learning</span>
                 </Link>
               </li>
             </ul>

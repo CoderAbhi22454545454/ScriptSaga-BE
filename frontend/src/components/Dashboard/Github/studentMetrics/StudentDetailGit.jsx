@@ -34,6 +34,8 @@ import {
   BarChart as BarChartIcon,
   PieChart as PieChartIcon,
   ListOrdered,
+  AlertCircle,
+  GitBranch,
 } from "lucide-react";
 import MessageStudent from "../../MessageStudent";
 
@@ -76,31 +78,38 @@ const StudentDetailGit = () => {
         setClassData(studentData.classId[0]);
 
         if (studentData.githubID) {
-          const repos = await fetchGithubRepos(userId);
+          const result = await fetchGithubRepos(userId);
           if (!isMounted) return;
           
-          setStudentRepos(repos);
-          
-          if (repos.length > 0) {
-            setCommitFrequency(processCommitFrequency(repos, startDate, endDate));
-            setLanguageUsage(processLanguageUsage(repos));
-            setMostActiveRepos(getMostActiveRepos(repos));
+          if (result.success) {
+            setStudentRepos(result.repos);
+            
+            if (result.repos.length > 0) {
+              setCommitFrequency(processCommitFrequency(result.repos, startDate, endDate));
+              setLanguageUsage(processLanguageUsage(result.repos));
+              setMostActiveRepos(getMostActiveRepos(result.repos));
+              
+              const metricsData = await updateMetrics(
+                userId, 
+                result.repos, 
+                studentData.leetCodeID ? await fetchLeetCodeData(userId) : null
+              );
+              if (!isMounted) return;
+              setMetrics(metricsData);
+            } else {
+              setError("No GitHub repositories found for this student.");
+            }
+          } else {
+            setError(result.error || "Failed to fetch GitHub data");
           }
-
-          const metricsData = await updateMetrics(
-            userId, 
-            repos, 
-            studentData.leetCodeID ? await fetchLeetCodeData(userId) : null
-          );
-          if (!isMounted) return;
-          setMetrics(metricsData);
+        } else {
+          setError("Student does not have a GitHub username configured.");
         }
 
       } catch (error) {
         if (isMounted) {
-          console.error('Error fetching data:', error);
-          setError(error.message);
-          toast.error(error.message);
+          console.error("Error fetching data:", error);
+          setError(error.message || "Failed to load data");
         }
       } finally {
         if (isMounted) {
@@ -117,7 +126,7 @@ const StudentDetailGit = () => {
     return () => {
       isMounted = false;
     };
-  }, [userId]);
+  }, [userId, dataFetched, startDate, endDate]);
 
   useEffect(() => {
     if (studentRepos.length > 0) {
@@ -463,6 +472,34 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="max-h-[570px] overflow-auto">
+              {loading && (
+                <div className="flex justify-center items-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin mr-2" />
+                  <span>Loading GitHub data...</span>
+                </div>
+              )}
+
+              {!loading && error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                    <p>{error}</p>
+                  </div>
+                </div>
+              )}
+
+              {!loading && studentRepos.some(repo => repo.isEmptyRepo) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                  <div className="flex items-center">
+                    <GitBranch className="h-5 w-5 text-blue-500 mr-2" />
+                    <div>
+                      <p className="font-medium">Empty Repository</p>
+                      <p className="text-sm text-gray-600">One or more GitHub repositories exist but don't have any commits yet.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {studentRepos.length > 0 ? (
                 studentRepos.map((repo, index) => (
                   <Accordion
@@ -829,11 +866,23 @@ const fetchStudentData = async (userId) => {
 };
 
 const fetchGithubRepos = async (userId) => {
-  const response = await api.get(`/github/${userId}/repos`);
-  if (!response.data.success) {
-    throw new Error('Failed to fetch GitHub repositories');
+  try {
+    const response = await api.get(`/github/${userId}/repos`);
+    if (!response.data.success) {
+      throw new Error('Failed to fetch GitHub repositories');
+    }
+    return {
+      success: true,
+      repos: response.data.repos
+    };
+  } catch (error) {
+    console.error('Error fetching GitHub repos:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch GitHub repositories',
+      repos: []
+    };
   }
-  return response.data.repos;
 };
 
 const updateMetrics = async (userId, repos, leetcode) => {

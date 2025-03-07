@@ -17,6 +17,7 @@ import Settings from './components/Dashboard/Settings';
 import TeacherDashboard from './components/Dashboard/TeacherDashboard';
 import TeacherManagement from './components/Dashboard/TeacherManagement';
 import TeacherClassView from './components/Dashboard/TeacherClassView';
+import GitHubLearningPage from './pages/student/GitHubLearningPage';
 const appRouter = createBrowserRouter([
   {
     path: '/',
@@ -121,6 +122,10 @@ const appRouter = createBrowserRouter([
         element: <StudentDashboard />,
       },
       {
+        path: 'github-learning',
+        element: <GitHubLearningPage />,
+      },
+      {
         path: 'settings/:id', 
         element: <Settings />,
       },
@@ -129,6 +134,10 @@ const appRouter = createBrowserRouter([
   {
     path: '/dashboard/:id?',
     element: <StudentDashboard />,
+  },
+  {
+    path: '/student/github-learning',
+    element: <GitHubLearningPage />,
   },
 ]);
 

@@ -11,6 +11,8 @@ const PublicRoute = () => {
         return <Navigate to="/admin" />
       case "student":
         return <Navigate to="/student" />
+      case "teacher":
+        return <Navigate to="/teacher" />
       default:
         return <Navigate to="/" />
     }

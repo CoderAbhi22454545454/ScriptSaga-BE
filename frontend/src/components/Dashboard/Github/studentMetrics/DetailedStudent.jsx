@@ -508,3 +508,6 @@ const LeetCodeProgressDetails = ({ metrics }) => {
 };
 
 export default DetailedStudentProgress;
+
+// Add these exports at the end of the file
+export { getImprovementSuggestions, getDomainSuggestions };

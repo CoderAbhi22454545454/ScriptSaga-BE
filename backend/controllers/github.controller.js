@@ -119,39 +119,21 @@ export const getStudentReposWithCommits = async (req, res) => {
 // Helper function to get all commits for a repository
 const getAllCommitsForRepo = async (githubID, repoName) => {
   try {
-    let allCommits = [];
-    let page = 1;
-    let hasMoreCommits = true;
-
-    while (hasMoreCommits) {
-      const response = await githubApi.get(`/repos/${githubID}/${repoName}/commits`, {
-        params: {
-          per_page: MAX_PER_PAGE,
-          page: page
-        }
-      });
-
-      const commits = response.data.map(commit => ({
-        message: commit.commit.message,
-        date: commit.commit.author.date,
-        url: commit.html_url,
-        sha: commit.sha,
-        author: commit.commit.author.name
-      }));
-
-      allCommits.push(...commits);
-
-      // Check if there are more commits
-      hasMoreCommits = commits.length === MAX_PER_PAGE;
-      page++;
-
-      // Add a small delay to avoid rate limiting
-      if (hasMoreCommits) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+    const result = await getGithubRepoCommits(githubID, repoName);
+    
+    // If there was an error but we handled it gracefully
+    if (!result.success) {
+      console.log(`Error fetching commits for ${repoName}: ${result.error}`);
+      return { commits: [], error: result.error };
     }
-
-    return { commits: allCommits };
+    
+    // If it's an empty repository
+    if (result.isEmptyRepo) {
+      console.log(`Repository ${repoName} is empty.`);
+      return { commits: [], isEmptyRepo: true };
+    }
+    
+    return { commits: result.commits };
   } catch (error) {
     console.error(`Error fetching commits for ${repoName}:`, error);
     return { commits: [] };

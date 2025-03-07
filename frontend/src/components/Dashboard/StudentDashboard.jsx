@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Accordion,
@@ -39,6 +39,11 @@ import {
   ListOrdered,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ImprovementSuggestions from './Github/studentMetrics/ImprovementSuggestions';
+import DomainRecommendations from './Github/studentMetrics/DomainRecommendations';
+import LearningResources from './Github/studentMetrics/LearningResources';
+import CareerRoadmap from './Github/studentMetrics/CareerRoadmap';
+import { getDomainSuggestions } from '@/utils/domainSuggestions';
 
 const GitHubMetrics = ({ repos }) => {
   // Calculate metrics
@@ -187,13 +192,17 @@ const processCommitFrequency = (repos, start, end) => {
 };
 
 const processLanguageUsage = (repos) => {
-  const languageCounts = {};
-  repos.forEach((repo) => {
+  const languages = {};
+  
+  repos.forEach(repo => {
     if (repo.language) {
-      languageCounts[repo.language] = (languageCounts[repo.language] || 0) + 1;
+      languages[repo.language] = (languages[repo.language] || 0) + 1;
     }
   });
-  return languageCounts;
+  
+  // Make sure we're returning a non-empty object
+  console.log("Processed languages:", languages);
+  return Object.keys(languages).length > 0 ? languages : null;
 };
 
 const getMostActiveRepos = (repos) => {
@@ -281,14 +290,31 @@ const StudentDashboard = () => {
     );
   };
 
+  const memoizedLanguageUsage = useMemo(() => {
+    return processLanguageUsage(studentData.repos);
+  }, [studentData.repos]);
+
+  const memoizedCommitFrequency = useMemo(() => {
+    return processCommitFrequency(studentData.repos, dateRange.startDate, dateRange.endDate);
+  }, [studentData.repos, dateRange.startDate, dateRange.endDate]);
+
+  const memoizedActiveRepos = useMemo(() => {
+    return getMostActiveRepos(studentData.repos);
+  }, [studentData.repos]);
+
   useEffect(() => {
+    // Create a flag to track if the component is mounted
+    let isMounted = true;
+    
     const fetchAllData = async () => {
       if (!user?._id) return;
 
       try {
         setLoading(true);
+        
         // Fetch student data
         const studentResponse = await api.get(`/user/${user._id}`);
+        if (!isMounted) return;
         const studentData = studentResponse.data.user;
         
         // Set notifications from user data if available
@@ -298,53 +324,71 @@ const StudentDashboard = () => {
         }
 
         // Fetch GitHub repos
-        const studentRepo = await api.get(`/github/${user._id}/repos`);
-        const repos = studentRepo.data.repos || [];
+        let repos = [];
+        let leetCodeData = null;
+        
+        if (studentData.githubID) {
+          const studentRepo = await api.get(`/github/${user._id}/repos`);
+          if (!isMounted) return;
+          repos = studentRepo.data.repos || [];
+        }
 
         // Process GitHub stats
+        const languageData = processLanguageUsage(repos);
+        
         const stats = {
           commitFrequency: processCommitFrequency(repos, dateRange.startDate, dateRange.endDate),
-          languageUsage: processLanguageUsage(repos),
+          languageUsage: languageData,
           mostActiveRepos: getMostActiveRepos(repos),
           totalCommits: repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
           detailedMetrics: calculateGitHubMetrics(repos)
         };
 
         // Get LeetCode data if available
-        let leetCodeData = null;
         if (studentData.leetCodeID) {
           try {
             const leetCodeResponse = await api.get(`/lcodeprofile/${user._id}`);
+            if (!isMounted) return;
             leetCodeData = leetCodeResponse.data;
           } catch (error) {
             console.error("Error fetching LeetCode data:", error);
           }
         }
 
-        setStudentData({
-          student: studentData,
-          classData: studentData.classId,
-          repos: repos,
-          leetCode: leetCodeData,
-        });
-        setGithubStats(stats);
-        
-        // Fetch assignments separately
-        fetchAssignments();
-        
-        // If notifications weren't in the user data, fetch them separately
-        if (!studentData.notifications) {
-          fetchNotifications();
+        // Update all state at once to minimize re-renders
+        if (isMounted) {
+          setStudentData({
+            student: studentData,
+            classData: studentData.classId,
+            repos: repos,
+            leetCode: leetCodeData,
+          });
+          setGithubStats(stats);
+          
+          // Fetch assignments and notifications only if needed
+          if (!studentData.notifications) {
+            fetchNotifications();
+          }
+          fetchAssignments();
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
-        toast.error("Failed to fetch your data. Please try again.");
+        if (isMounted) {
+          console.error("Error fetching data:", error);
+          toast.error("Failed to fetch your data. Please try again.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchAllData();
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
   }, [user?._id, dateRange.startDate, dateRange.endDate]);
 
   const fetchAssignments = async () => {
@@ -358,33 +402,29 @@ const StudentDashboard = () => {
       
       if (response.data.success && response.data.assignments?.length > 0) {
         setAssignments(response.data.assignments);
-      } else {
+      } else if (studentData.student?.classId) {
         // If no assignments found, try to get assignments for the student's class
-        if (studentData.student?.classId) {
-          const classId = Array.isArray(studentData.student.classId) 
-            ? studentData.student.classId[0]
-            : studentData.student.classId;
-            
-          console.log("Trying to fetch assignments for class:", classId);
+        const classId = Array.isArray(studentData.student.classId) 
+          ? studentData.student.classId[0]
+          : studentData.student.classId;
           
-          // Try to fetch assignments for the student's class
-          const classResponse = await api.get(`/assignment/class/${classId}`);
+        // Try to fetch assignments for the student's class
+        const classResponse = await api.get(`/assignment/class/${classId}`);
+        
+        if (classResponse.data.success && classResponse.data.assignments) {
+          // Process assignments to add empty studentRepo entries if needed
+          const processedAssignments = classResponse.data.assignments.map(assignment => {
+            // If student doesn't have a repo entry yet, add a placeholder
+            if (!assignment.studentRepos?.some(repo => repo.studentId === user._id)) {
+              assignment.studentRepos = [
+                ...(assignment.studentRepos || []),
+                { studentId: { _id: user._id }, submitted: false }
+              ];
+            }
+            return assignment;
+          });
           
-          if (classResponse.data.success && classResponse.data.assignments) {
-            // Process assignments to add empty studentRepo entries if needed
-            const processedAssignments = classResponse.data.assignments.map(assignment => {
-              // If student doesn't have a repo entry yet, add a placeholder
-              if (!assignment.studentRepos?.some(repo => repo.studentId === user._id)) {
-                assignment.studentRepos = [
-                  ...(assignment.studentRepos || []),
-                  { studentId: { _id: user._id }, submitted: false }
-                ];
-              }
-              return assignment;
-            });
-            
-            setAssignments(processedAssignments);
-          }
+          setAssignments(processedAssignments);
         }
       }
     } catch (error) {
@@ -400,12 +440,11 @@ const StudentDashboard = () => {
     
     try {
       setNotificationsLoading(true);
-      // Instead of using a dedicated notifications endpoint, we can use the user data
-      // that already contains notifications
+      // Use the user data that already contains notifications
       if (studentData.student && studentData.student.notifications) {
         setNotifications(studentData.student.notifications || []);
       } else {
-        // Try to fetch user data specifically for notifications
+        // Only fetch if we don't already have the data
         const response = await api.get(`/user/${user._id}`);
         if (response.data.success && response.data.user) {
           setNotifications(response.data.user.notifications || []);
@@ -444,6 +483,7 @@ const StudentDashboard = () => {
       </div>
     );
   }
+
 
   return (
     <Navbar>
@@ -484,15 +524,15 @@ const StudentDashboard = () => {
                   </p>
                   <p>
                     <span className="font-semibold">Year of Study:</span>{" "}
-                    {studentData.classData?.yearOfStudy || "No class found"}
+                    {studentData.student?.classId?.[0]?.className?.split('-')?.[0] || "No class found"}
                   </p>
                   <p>
                     <span className="font-semibold">Branch:</span>{" "}
-                    {studentData.classData?.branch || "No class found"}
+                    {studentData.student?.classId?.[0]?.branch || "No class found"}
                   </p>
                   <p>
                     <span className="font-semibold">Division:</span>{" "}
-                    {studentData.classData?.division || "No class found"}
+                    {studentData.student?.classId?.[0]?.division || "No class found"}
                   </p>
                 </div>
                 <Badge variant="outline" className="mt-4 bg-green-300 border-0">
@@ -732,20 +772,51 @@ const StudentDashboard = () => {
           {/* <TeacherNotifications /> */}
 
           {/* Improvement Suggestions */}
-          <StudentSuggestions
+          {/* <StudentSuggestions
             githubData={{
               totalCommits: githubStats.totalCommits,
               languages: githubStats.languageUsage,
               metrics: githubStats.detailedMetrics,
               recentActivity: {
-                commits: githubStats.detailedMetrics.raw.recentActivity.commits,
-                activeDays: githubStats.detailedMetrics.raw.recentActivity.activeDays.size,
-                repositories: githubStats.detailedMetrics.raw.recentActivity.repositories.size
+                commits: githubStats.detailedMetrics?.raw?.recentActivity?.commits || 0,
+                activeDays: githubStats.detailedMetrics?.raw?.recentActivity?.activeDays?.size || 0,
+                repositories: githubStats.detailedMetrics?.raw?.recentActivity?.repositories?.size || 0
               },
-              scores: githubStats.detailedMetrics.scores
+              scores: githubStats.detailedMetrics?.scores || {}
             }}
             leetCodeData={studentData.leetCode}
-          />
+          /> */}
+          
+          {/* Add the new components */}
+          {console.log("GitHub stats:", githubStats)}
+          
+          {/* Improvement Suggestions */}
+          {githubStats.detailedMetrics && (
+            <ImprovementSuggestions metrics={githubStats.detailedMetrics} />
+          )}
+          
+          {/* Domain Recommendations and Career Roadmap */}
+          {githubStats.languageUsage && Object.keys(githubStats.languageUsage).length > 0 ? (
+            <>
+              <DomainRecommendations languages={githubStats.languageUsage} />
+              <CareerRoadmap languages={githubStats.languageUsage} />
+              <LearningResources languages={githubStats.languageUsage} />
+            </>
+          ) : (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <BookOpen className="w-6 h-6" />
+                  Career Path Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 text-center text-gray-500">
+                  No language data available. Start coding in more repositories to get personalized career recommendations.
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Assignments Section */}
           <Card>
