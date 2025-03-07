@@ -7,6 +7,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
+import BulkUploadJSON from './BulkUploadJSON';
 
 const StudentManagement = () => {
   const [classes, setClasses] = useState([]);
@@ -54,8 +55,25 @@ const StudentManagement = () => {
     }
   };
 
+  const validateGithubUsername = (username) => {
+    // GitHub username rules:
+    // - Only alphanumeric characters or hyphens
+    // - Cannot have multiple consecutive hyphens
+    // - Cannot begin or end with a hyphen
+    // - Maximum is 39 characters
+    const githubUsernameRegex = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+    return githubUsernameRegex.test(username);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Add GitHub username validation
+    if (formData.githubID && !validateGithubUsername(formData.githubID)) {
+      toast.error("Invalid GitHub username format. Please enter a valid GitHub username.");
+      return;
+    }
+
     try {
       if (isEditing) {
         const response = await api.put(`/user/update-student/${editingId}`, formData);
@@ -83,9 +101,10 @@ const StudentManagement = () => {
         leetCodeID: ""
       });
     } catch (error) {
-      // Show specific error message for roll number conflict
       if (error.response?.data?.message.includes('roll number')) {
         toast.error(error.response.data.message);
+      } else if (error.response?.status === 404 && formData.githubID) {
+        toast.error("GitHub username not found. Please verify the username.");
       } else {
         toast.error(error.message || (isEditing ? "Failed to update student" : "Failed to create student"));
       }
@@ -138,6 +157,14 @@ const StudentManagement = () => {
   return (
     <Navbar>
       <div className="container mx-auto p-6">
+        <BulkUploadJSON 
+          classes={classes} 
+          onUploadSuccess={() => {
+            if (selectedClass) {
+              fetchStudents(selectedClass._id);
+            }
+          }} 
+        />
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>{isEditing ? "Edit Student" : "Add New Student"}</CardTitle>

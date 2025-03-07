@@ -170,6 +170,8 @@ const StudentDetailGit = () => {
               // Use the summary data we already set earlier
             } else {
               setError("No GitHub repositories found for this student.");
+              console.log("No GitHub repositories found for this student.");
+              toast.error("No GitHub repositories found for this student.");
             }
           } else {
             // If detailed repo fetch fails but we have summary, use summary
@@ -326,240 +328,182 @@ const StudentDetailGit = () => {
     fetchData();
   }, [userId]);
 
-  if (!student)
+  if (!student) {
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2 className="mr-2 h-10 w-10 animate-spin" />
         <p>Loading Awesome stuff...</p>
       </div>
     );
+  }
+
+  // Early return if no GitHub ID
+  if (!student.githubID) {
+    return (
+      <Navbar>
+        <div className="container mx-auto p-6">
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GitBranch className="w-5 h-5" />
+                GitHub Integration
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <AlertCircle className="w-12 h-12 text-yellow-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No GitHub Account Connected</h3>
+                <p className="text-gray-500 max-w-md">
+                  This student hasn't connected their GitHub account yet. GitHub integration 
+                  is required to track repository activity and coding progress.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Navbar>
+    );
+  }
+
   const totalCommits = studentRepos.reduce(
     (sum, repo) => sum + (repo.commits ? repo.commits.length : 0),
     0
   );
 
-  if (error) {
+  const renderContent = () => {
+    if (error) {
+      return (
+        <Card className="mt-4">
+          <CardContent>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Failed to load GitHub data</h3>
+              <p className="text-gray-500 mb-4">{error}</p>
+              <button 
+                onClick={() => fetchGithubData(1)}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return (
-      <div className="error-container">
-        <h3>Failed to load GitHub data</h3>
-        <p>{error}</p>
-        <button onClick={() => fetchGithubData(1)}>Retry</button>
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-7">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-2">
+
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-user"
+              >
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Student Information
+
+              <Badge variant="outline" className="ml-auto bg-green-300 border-0">
+              Student
+            </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <p className="text-lg">
+                <span className="font-semibold">Name:</span>{" "}
+                {student.firstName || "No data"} {student.lastName}
+              </p>
+              <p>
+                <span className="font-semibold">Email:</span>{" "}
+                {student.email || "No Data"}
+              </p>
+              <p>
+                <span className="font-semibold">Year of Study:</span>{" "}
+                {/* Class: {classData?.className} | Branch: {classData?.branch} | Division: {classData?.division} */}
+                {student.classId[0].className || "Student not in any class"}
+                </p>
+              <p>
+                <span className="font-semibold">Branch:</span>{" "}
+                {student.classId[0].branch || "Student not in any class"}
+              </p>
+              <p>
+                <span className="font-semibold">Division:</span>{" "}
+                {student.classId[0].division || "Student not in any class"}
+              </p>
+            </div>
+    
+          </CardContent>
+        </Card>
+
+        <MessageStudent studentId={student._id} />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-github"
+              >
+                <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                <path d="M9 18c-4.51 2-5-2-7-2" />
+              </svg>
+              GitHub Progress Report
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GitHubMetrics stats={metrics} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <BarChartIcon className="h-6 w-6" />
+              Recommended Domains
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {metrics && languageUsage && (
+              <DomainRecommendations 
+                languages={languageUsage} 
+                metrics={metrics}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <DetailedStudentProgress 
+          repos={studentRepos} 
+          leetCode={studentLeetCode} 
+        />
       </div>
     );
-  }
-
-  const fetchGithubDataWithRefresh = async (userId) => {
-    try {
-      // Force refresh the data
-      const response = await api.get(`/github/${userId}/repos`, {
-        params: { refresh: true }
-      });
-      
-      if (!response.data.success) {
-        throw new Error('Failed to fetch GitHub repositories');
-      }
-      
-      return {
-        success: true,
-        repos: response.data.repos
-      };
-    } catch (error) {
-      console.error('Error fetching GitHub repos:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Failed to fetch GitHub repositories',
-        repos: []
-      };
-    }
-  };
-
-  const RefreshButton = ({ onClick, isLoading }) => (
-    <button
-      onClick={onClick}
-      disabled={isLoading}
-      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
-    >
-      {isLoading ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          Refreshing...
-        </>
-      ) : (
-        <>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh Data
-        </>
-      )}
-    </button>
-  );
-
-  const handleRefreshData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // First refresh the summary
-      const summaryResult = await api.get(`/github/${userId}/summary`, {
-        params: { refresh: true }
-      });
-      
-      if (summaryResult.data.success) {
-        setMetrics(summaryResult.data.summary);
-      }
-      
-      // Then refresh the detailed repos
-      const result = await fetchGithubDataWithRefresh(userId);
-      
-      if (result.success) {
-        setStudentRepos(result.repos);
-        setCommitFrequency(processCommitFrequency(result.repos, startDate, endDate));
-        setLanguageUsage(processLanguageUsage(result.repos));
-        setMostActiveRepos(getMostActiveRepos(result.repos));
-        
-        // Update metrics with the enhanced data
-        const enhancedMetrics = {
-          totalRepos: Math.max(summaryResult.data.summary.totalRepos, result.repos.length),
-          totalCommits: result.repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
-          activeRepos: result.repos.filter(repo => (repo.commits?.length || 0) > 0).length,
-          totalStars: result.repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0),
-          totalForks: result.repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0)
-        };
-        
-        setMetrics(enhancedMetrics);
-        
-        // Update the server
-        try {
-          const metricsData = await updateMetrics(
-            userId, 
-            result.repos, 
-            studentData.leetCodeID ? await fetchLeetCodeData(userId) : null
-          );
-          if (metricsData && Object.keys(metricsData).length > 0) {
-            setMetrics({
-              ...enhancedMetrics,
-              ...metricsData
-            });
-          }
-        } catch (metricsError) {
-          console.error('Error updating metrics:', metricsError);
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      setError(error.message || 'Failed to refresh data');
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
     <Navbar>
       <div className="container mx-auto p-6">
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-7">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-user"
-                >
-                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                Student Information
-
-                <Badge variant="outline" className="ml-auto bg-green-300 border-0">
-                Student
-              </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-lg">
-                  <span className="font-semibold">Name:</span>{" "}
-                  {student.firstName || "No data"} {student.lastName}
-                </p>
-                <p>
-                  <span className="font-semibold">Email:</span>{" "}
-                  {student.email || "No Data"}
-                </p>
-                <p>
-                  <span className="font-semibold">Year of Study:</span>{" "}
-                  {/* Class: {classData?.className} | Branch: {classData?.branch} | Division: {classData?.division} */}
-                  {student.classId[0].className || "Student not in any class"}
-                  </p>
-                <p>
-                  <span className="font-semibold">Branch:</span>{" "}
-                  {student.classId[0].branch || "Student not in any class"}
-                </p>
-                <p>
-                  <span className="font-semibold">Division:</span>{" "}
-                  {student.classId[0].division || "Student not in any class"}
-                </p>
-              </div>
-      
-            </CardContent>
-          </Card>
-
-          <MessageStudent studentId={student._id} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-github"
-                >
-                  <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-                  <path d="M9 18c-4.51 2-5-2-7-2" />
-                </svg>
-                GitHub Progress Report
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <GitHubMetrics stats={metrics} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <BarChartIcon className="h-6 w-6" />
-                Recommended Domains
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {metrics && languageUsage && (
-                <DomainRecommendations 
-                  languages={languageUsage} 
-                  metrics={metrics}
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          <DetailedStudentProgress 
-            repos={studentRepos} 
-            leetCode={studentLeetCode} 
-          />
-        </div>
+        {renderContent()}
 
         <div className="mt-8">
           <Card>
@@ -680,7 +624,15 @@ const StudentDetailGit = () => {
                 <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
                   <div className="flex items-center">
                     <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                    <p>{error}</p>
+                    <div>
+                      <p className="font-medium text-red-800">GitHub Data Error</p>
+                      <p className="text-sm text-red-600">{error}</p>
+                      {error.includes("not found") && (
+                        <p className="text-sm text-gray-600 mt-2">
+                          Please ensure your GitHub username is correct in your profile settings.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -783,8 +735,10 @@ const StudentDetailGit = () => {
 
         {/* Progress Charts */}
         {/* Tracking Features */}
+        {studentRepos.length > 0 && (
         <div className="mt-8 grid grid-cols-1 md:grid-cols-1 gap-6">
           <Card className="col-span-2">
+
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChartIcon className="w-5 h-5" />
@@ -792,28 +746,8 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* <div className="flex gap-4 mb-4">
-      <input
-        type="date"
-        value={startDate ? startDate.toISOString().split('T')[0] : ''}
-        onChange={(e) => setStartDate(new Date(e.target.value))}
-        className="border p-2 rounded"
-      />
-      <input
-        type="date"
-        value={endDate ? endDate.toISOString().split('T')[0] : ''}
-        onChange={(e) => setEndDate(new Date(e.target.value))}
-        className="border p-2 rounded"
-      />
-      <button
-        onClick={() => {
-          setCommitFrequency(processCommitFrequency(studentRepos, startDate, endDate));
-        }}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-      >
-        Apply Filter
-      </button>
-    </div> */}
+              
+         
               <div className="h-[450px]">
                 <CommitFrequencyChart data={commitFrequency} />
               </div>
@@ -846,6 +780,8 @@ const StudentDetailGit = () => {
             </CardContent>
           </Card>
         </div>
+        )}
+
       </div>
     </Navbar>
   );
@@ -991,9 +927,12 @@ const fetchGithubRepos = async (userId) => {
     };
   } catch (error) {
     console.error('Error fetching GitHub repos:', error);
+    const is404 = error.response?.status === 404;
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to fetch GitHub repositories',
+      error: is404 
+        ? "GitHub username not found. Please verify the username in your profile."
+        : (error.response?.data?.message || 'Failed to fetch GitHub repositories'),
       repos: []
     };
   }

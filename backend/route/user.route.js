@@ -18,6 +18,7 @@ import {
     deleteTeacher,
     getStudentsByClass,
 } from '../controllers/user.controller.js';
+import { bulkUploadStudentsJSON } from '../controllers/admin.controller.js';
 import authMiddelware from '../middelwares/auth.js';
 
 const router = express.Router();
@@ -47,5 +48,10 @@ router.delete('/delete-teacher/:id', deleteTeacher);
 // Parameter routes should come last
 router.get('/:userId',  getUserById);
 router.get('/class/:classId/students', getStudentsByClass);
+
+
+// Admin bulk upload routes
+router.post('/bulk-upload-students-json',  bulkUploadStudentsJSON);
+
 
 export default router;
