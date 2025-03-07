@@ -38,7 +38,8 @@ import {
   GitBranch,
 } from "lucide-react";
 import MessageStudent from "../../MessageStudent";
-import DomainRecommendations from './DomainRecommendations';
+import DomainRecommendations from '../studentMetrics/DomainRecommendations';
+import { getDomainSuggestions } from '@/utils/domainSuggestions';
 
 const StudentDetailGit = () => {
   const { userId } = useParams();
@@ -433,6 +434,23 @@ const StudentDetailGit = () => {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <BarChartIcon className="h-6 w-6" />
+                Recommended Domains
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {metrics && languageUsage && (
+                <DomainRecommendations 
+                  languages={languageUsage} 
+                  metrics={metrics}
+                />
+              )}
+            </CardContent>
+          </Card>
+
           <DetailedStudentProgress 
             repos={studentRepos} 
             leetCode={studentLeetCode} 
@@ -519,10 +537,6 @@ const StudentDetailGit = () => {
               )}
             </CardContent>
           </Card>
-        </div>
-
-        <div className="mt-8">
-          <DomainRecommendations languages={languageUsage} />
         </div>
 
         <div className="mt-8">
@@ -1030,4 +1044,5 @@ const fetchGithubSummary = async (userId) => {
     }
   }
 };
+
 
