@@ -92,19 +92,24 @@ const StudentProgressMetrics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {metrics.topLeetCodeStudents?.map((student, index) => (
-              <div
-                key={`leetcode-${student._id}-${index}`}
-                className="flex justify-between items-center py-2 border-b last:border-0"
-              >
-                <span className="text-sm">
-                  {index + 1}. {student.firstName} {student.lastName}
-                </span>
-                <span className="text-sm font-medium">
-                  {student.problemsSolved || 0} problems
-                </span>
-              </div>
-            ))}
+            {metrics.topLeetCodeStudents
+              ?.filter((student, index, self) => 
+                index === self.findIndex(s => s.firstName === student.firstName && s.lastName === student.lastName) &&
+                (student.problemsSolved > 0)
+              )
+              .map((student, index) => (
+                <div
+                  key={`leetcode-${student._id}-${index}`}
+                  className="flex justify-between items-center py-2 border-b last:border-0"
+                >
+                  <span className="text-sm">
+                    {index + 1}. {student.firstName} {student.lastName}
+                  </span>
+                  <span className="text-sm font-medium">
+                    {student.problemsSolved || 0} problems
+                  </span>
+                </div>
+              ))}
           </CardContent>
         </Card>
 
@@ -115,8 +120,12 @@ const StudentProgressMetrics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {Array.isArray(metrics.topGitHubStudents) && metrics.topGitHubStudents.length > 0 ? (
-              metrics.topGitHubStudents.map((student, index) => (
+            {Array.isArray(metrics.topGitHubStudents) && metrics.topGitHubStudents
+              .filter((student, index, self) => 
+                index === self.findIndex(s => s.firstName === student.firstName && s.lastName === student.lastName) &&
+                (student.totalCommits > 0)
+              )
+              .map((student, index) => (
                 <div
                   key={`github-${student._id}-${index}`}
                   className="flex justify-between items-center py-2 border-b last:border-0"
@@ -128,12 +137,7 @@ const StudentProgressMetrics = () => {
                     {student.totalCommits || 0} commits
                   </span>
                 </div>
-              ))
-            ) : (
-              <div className="text-sm text-gray-500 py-2">
-                No data available
-              </div>
-            )}
+              ))}
           </CardContent>
         </Card>
       </div>

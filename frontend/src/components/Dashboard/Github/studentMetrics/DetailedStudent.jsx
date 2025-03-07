@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
 
 // Add these functions before the DetailedStudentProgress component
 
@@ -247,10 +249,26 @@ const DomainRecommendations = ({ repos }) => {
 };
 
 const DetailedStudentProgress = ({ repos, leetCode }) => {
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    if (!repos) {
+      setLoading(false);
+      return;
+    }
+    
+    // Calculate metrics when repos change
+    const calculatedMetrics = calculateGitHubMetrics();
+    setMetrics(calculatedMetrics);
+    setLoading(false);
+  }, [repos]);
+  
   // GitHub Metrics Calculation
   const calculateGitHubMetrics = () => {
     const now = new Date();
-    const ninetyDaysAgo = new Date(now.setDate(now.getDate() - 90));
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(now.getDate() - 90);
     
     const metrics = {
       recentActivity: {
@@ -319,7 +337,8 @@ const DetailedStudentProgress = ({ repos, leetCode }) => {
       scores: {
         activity: Math.round(activityScore),
         quality: Math.round(qualityScore),
-        impact: Math.round(impactScore)
+        impact: Math.round(impactScore),
+        overall: Math.round((activityScore + qualityScore + impactScore) / 3)
       }
     };
   };
@@ -358,154 +377,122 @@ const DetailedStudentProgress = ({ repos, leetCode }) => {
   const githubMetrics = calculateGitHubMetrics();
   const leetCodeMetrics = calculateLeetCodeMetrics();
 
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Detailed Progress Report</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center items-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin mr-2" />
+            <span>Calculating metrics...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!repos || repos.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Detailed Progress Report</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-center text-gray-500">No repository data available</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Detailed Progress Report</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-center text-gray-500">Unable to calculate metrics</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="w-full">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          Detailed Progress Report
-          <OverallProgressBadge 
-            githubScore={githubMetrics.scores.activity} 
-            leetCodeScore={leetCodeMetrics?.scores.overall || 0}
-          />
-        </CardTitle>
+        <CardTitle>Detailed Progress Report</CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="github" className="w-full">
-          <TabsList>
-            <TabsTrigger value="github">GitHub Progress</TabsTrigger>
-            <TabsTrigger value="leetcode">LeetCode Progress</TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium mb-2">Overall GitHub Score</h3>
+            <div className="w-full bg-gray-200 rounded-full h-4">
+              <div 
+                className="bg-blue-600 h-4 rounded-full"
+                style={{ width: `${metrics.scores.overall}%` }}
+              />
+            </div>
+            <p className="text-right mt-1">{metrics.scores.overall}/100</p>
+          </div>
           
-          <TabsContent value="github">
-            <GitHubProgressDetails metrics={githubMetrics} repos={repos} />
-          </TabsContent>
-          
-          <TabsContent value="leetcode">
-            <LeetCodeProgressDetails metrics={leetCodeMetrics} />
-          </TabsContent>
-        </Tabs>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <ScoreCard 
+              title="Activity" 
+              score={metrics.scores.activity} 
+              details={[
+                { label: "Commits (90 days)", value: metrics.raw.recentActivity.commits },
+                { label: "Active Days", value: metrics.raw.recentActivity.activeDays.size },
+                { label: "Active Repos", value: metrics.raw.recentActivity.repositories.size }
+              ]}
+            />
+            
+            <ScoreCard 
+              title="Code Quality" 
+              score={metrics.scores.quality} 
+              details={[
+                { label: "Consistency", value: `${Math.round(metrics.raw.recentActivity.activeDays.size / 90 * 100)}%` },
+                { label: "Repo Diversity", value: metrics.raw.recentActivity.repositories.size }
+              ]}
+            />
+            
+            <ScoreCard 
+              title="Impact" 
+              score={metrics.scores.impact} 
+              details={[
+                { label: "Stars", value: metrics.raw.impact.totalStars },
+                { label: "Forks", value: metrics.raw.impact.totalForks }
+              ]}
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
 };
 
-const GitHubProgressDetails = ({ metrics, repos }) => (
-  <div className="space-y-6">
-    <div className="grid grid-cols-3 gap-4">
-      <ProgressCard 
-        title="Activity Score" 
-        value={metrics.scores.activity} 
-        description="Based on recent commits and consistency"
-      />
-      <ProgressCard 
-        title="Code Quality" 
-        value={metrics.scores.quality}
-        description="Based on commit size and patterns"
-      />
-      <ProgressCard 
-        title="Impact" 
-        value={metrics.scores.impact}
-        description="Based on contributions and engagement"
+const ScoreCard = ({ title, score, details }) => (
+  <div className="bg-white rounded-lg p-4 shadow">
+    <h3 className="font-medium mb-2">{title}</h3>
+    <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+      <div 
+        className="bg-blue-600 h-2 rounded-full"
+        style={{ width: `${score}%` }}
       />
     </div>
+    <p className="text-right text-sm mb-4">{score}/100</p>
     
-    <div className="mt-4">
-      <h3 className="font-semibold mb-2">Recent Activity Details</h3>
-      <div className="grid grid-cols-3 gap-4 text-sm">
-        <div>
-          <p className="text-muted-foreground">Total Commits</p>
-          <p className="text-2xl font-bold">{metrics.raw.recentActivity.commits}</p>
+    <div className="space-y-2">
+      {details.map((detail, index) => (
+        <div key={index} className="flex justify-between text-sm">
+          <span className="text-gray-500">{detail.label}</span>
+          <span className="font-medium">{detail.value}</span>
         </div>
-        <div>
-          <p className="text-muted-foreground">Active Days</p>
-          <p className="text-2xl font-bold">{metrics.raw.recentActivity.activeDays.size}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">Active Repositories</p>
-          <p className="text-2xl font-bold">{metrics.raw.recentActivity.repositories.size}</p>
-        </div>
-      </div>
+      ))}
     </div>
-
-    <ImprovementSuggestions metrics={metrics} />
-    <DomainRecommendations repos={repos} />
   </div>
 );
-
-const LeetCodeProgressDetails = ({ metrics }) => {
-  if (!metrics) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="48"
-          height="48"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-yellow-500 mb-4"
-        >
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <h3 className="text-lg font-semibold text-gray-800">No LeetCode Account Found</h3>
-        <p className="text-gray-600 mt-2">
-          This student hasn't connected their LeetCode account yet.
-        </p>
-        <p className="text-sm text-gray-500 mt-4">
-          Connecting a LeetCode account will help track problem-solving progress and consistency.
-        </p>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <ProgressCard 
-          title="Problem Solving" 
-          value={metrics.scores.problems}
-          description="Based on problems solved and difficulty"
-        />
-        <ProgressCard 
-          title="Consistency" 
-          value={metrics.scores.consistency}
-          description="Based on submission rate and ranking"
-        />
-      </div>
-      
-      <div className="mt-4">
-        <h3 className="font-semibold mb-2">Problem Solving Details</h3>
-        <div className="grid grid-cols-4 gap-4">
-          <ProblemTypeCard 
-            type="Total" 
-            count={metrics.raw.problemSolving.total}
-            className="bg-blue-500"
-          />
-          <ProblemTypeCard 
-            type="Easy" 
-            count={metrics.raw.problemSolving.easy}
-            className="bg-green-500"
-          />
-          <ProblemTypeCard 
-            type="Medium" 
-            count={metrics.raw.problemSolving.medium}
-            className="bg-yellow-500"
-          />
-          <ProblemTypeCard 
-            type="Hard" 
-            count={metrics.raw.problemSolving.hard}
-            className="bg-red-500"
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default DetailedStudentProgress;
 

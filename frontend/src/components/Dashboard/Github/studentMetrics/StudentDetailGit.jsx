@@ -14,7 +14,7 @@ import api from "@/constants/constant";
 import { toast } from "sonner";
 import CalHeatMap from "cal-heatmap";
 import "cal-heatmap/cal-heatmap.css";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import DetailedStudentProgress from "./DetailedStudent";
 import {
   LineChart,
@@ -347,6 +347,110 @@ const StudentDetailGit = () => {
       </div>
     );
   }
+
+  const fetchGithubDataWithRefresh = async (userId) => {
+    try {
+      // Force refresh the data
+      const response = await api.get(`/github/${userId}/repos`, {
+        params: { refresh: true }
+      });
+      
+      if (!response.data.success) {
+        throw new Error('Failed to fetch GitHub repositories');
+      }
+      
+      return {
+        success: true,
+        repos: response.data.repos
+      };
+    } catch (error) {
+      console.error('Error fetching GitHub repos:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch GitHub repositories',
+        repos: []
+      };
+    }
+  };
+
+  const RefreshButton = ({ onClick, isLoading }) => (
+    <button
+      onClick={onClick}
+      disabled={isLoading}
+      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+    >
+      {isLoading ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          Refreshing...
+        </>
+      ) : (
+        <>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh Data
+        </>
+      )}
+    </button>
+  );
+
+  const handleRefreshData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // First refresh the summary
+      const summaryResult = await api.get(`/github/${userId}/summary`, {
+        params: { refresh: true }
+      });
+      
+      if (summaryResult.data.success) {
+        setMetrics(summaryResult.data.summary);
+      }
+      
+      // Then refresh the detailed repos
+      const result = await fetchGithubDataWithRefresh(userId);
+      
+      if (result.success) {
+        setStudentRepos(result.repos);
+        setCommitFrequency(processCommitFrequency(result.repos, startDate, endDate));
+        setLanguageUsage(processLanguageUsage(result.repos));
+        setMostActiveRepos(getMostActiveRepos(result.repos));
+        
+        // Update metrics with the enhanced data
+        const enhancedMetrics = {
+          totalRepos: Math.max(summaryResult.data.summary.totalRepos, result.repos.length),
+          totalCommits: result.repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
+          activeRepos: result.repos.filter(repo => (repo.commits?.length || 0) > 0).length,
+          totalStars: result.repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0),
+          totalForks: result.repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0)
+        };
+        
+        setMetrics(enhancedMetrics);
+        
+        // Update the server
+        try {
+          const metricsData = await updateMetrics(
+            userId, 
+            result.repos, 
+            studentData.leetCodeID ? await fetchLeetCodeData(userId) : null
+          );
+          if (metricsData && Object.keys(metricsData).length > 0) {
+            setMetrics({
+              ...enhancedMetrics,
+              ...metricsData
+            });
+          }
+        } catch (metricsError) {
+          console.error('Error updating metrics:', metricsError);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      setError(error.message || 'Failed to refresh data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Navbar>

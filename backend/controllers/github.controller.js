@@ -28,6 +28,7 @@ export const getStudentReposWithCommits = async (req, res) => {
     const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || MAX_PER_PAGE;
+    const forceRefresh = req.query.refresh === 'true';
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ 
@@ -45,7 +46,8 @@ export const getStudentReposWithCommits = async (req, res) => {
     }
 
     let githubData = await GithubData.findOne({ userId });
-    const needsUpdate = !githubData || 
+    const needsUpdate = forceRefresh || 
+                       !githubData || 
                        !githubData.repos ||
                        githubData.repos.length === 0 ||
                        Date.now() - githubData.lastUpdated > 24 * 60 * 60 * 1000;
@@ -72,8 +74,40 @@ export const getStudentReposWithCommits = async (req, res) => {
 
     // If we need to update, fetch from GitHub API
     try {
-      // Get all repos with maximum items per page
-      const allRepos = await getGithubUserRepos(user.githubID, MAX_PER_PAGE);
+      // Get user profile first to get accurate repo count
+      const userProfileResponse = await githubApi.get(`/users/${user.githubID}`);
+      const totalRepos = userProfileResponse.data.public_repos;
+      
+      // Fetch all repositories with pagination
+      let allRepos = [];
+      let currentPage = 1;
+      let hasMorePages = true;
+      
+      while (hasMorePages && currentPage <= Math.ceil(totalRepos / MAX_PER_PAGE)) {
+        console.log(`Fetching page ${currentPage} of repos for ${user.githubID}`);
+        
+        const response = await githubApi.get(`/users/${user.githubID}/repos`, {
+          params: {
+            per_page: MAX_PER_PAGE,
+            page: currentPage
+          }
+        });
+        
+        const repos = response.data;
+        allRepos = [...allRepos, ...repos];
+        
+        // Check if we've reached the last page
+        if (repos.length < MAX_PER_PAGE) {
+          hasMorePages = false;
+        } else {
+          currentPage++;
+        }
+        
+        // Safety limit to prevent too many requests
+        if (currentPage > 10) break; // Limit to 1000 repos max
+      }
+      
+      console.log(`Fetched ${allRepos.length} total repos for ${user.githubID}`);
       
       // Process repos in larger batches
       const reposWithCommits = [];
@@ -104,7 +138,7 @@ export const getStudentReposWithCommits = async (req, res) => {
         { upsert: true, new: true }
       );
 
-      // Paginate the repos we just fetched instead of making another API call
+      // Paginate the repos we just fetched
       const startIndex = (page - 1) * limit;
       const endIndex = page * limit;
       const paginatedRepos = reposWithCommits.slice(startIndex, endIndex);
@@ -221,6 +255,7 @@ export const memoryCache = new MemoryCache();
 export const getStudentGitHubSummary = async (req, res) => {
   try {
     const { userId } = req.params;
+    const forceRefresh = req.query.refresh === 'true';
     
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: 'Invalid user ID format', success: false });
@@ -235,7 +270,8 @@ export const getStudentGitHubSummary = async (req, res) => {
 
     // Check if we have cached summary data
     let githubData = await GithubData.findOne({ userId });
-    const needsUpdate = !githubData || 
+    const needsUpdate = forceRefresh || 
+                       !githubData || 
                        !githubData.summary ||
                        Date.now() - githubData.lastUpdated > 24 * 60 * 60 * 1000;
 
@@ -288,7 +324,54 @@ export const getStudentGitHubSummary = async (req, res) => {
         });
       }
       
-      // Get first page of repos for other metrics
+      // Check if we have detailed repo data with actual commits
+      if (githubData && githubData.repos && githubData.repos.length > 0) {
+        console.log(`Using existing detailed repo data for summary calculation`);
+        
+        // Calculate summary from detailed repo data
+        const repos = githubData.repos;
+        const totalCommits = repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0);
+        
+        const activeRepos = repos.filter(repo => {
+          if (!repo.commits || repo.commits.length === 0) return false;
+          
+          const lastCommitDate = new Date(repo.commits[0].date);
+          const threeMonthsAgo = new Date();
+          threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+          return lastCommitDate > threeMonthsAgo;
+        }).length;
+        
+        const totalStars = repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0);
+        const totalForks = repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0);
+        
+        const summary = {
+          totalRepos: Math.max(totalRepos, repos.length),
+          totalCommits,
+          activeRepos,
+          totalStars,
+          totalForks
+        };
+        
+        // Update the summary in the database
+        githubData = await GithubData.findOneAndUpdate(
+          { userId },
+          { 
+            $set: {
+              summary,
+              lastUpdated: Date.now()
+            }
+          },
+          { new: true }
+        );
+        
+        return res.status(200).json({
+          success: true,
+          summary,
+          fromCache: false
+        });
+      }
+      
+      // If we don't have detailed data, fetch first page of repos for estimation
       const response = await githubApi.get(`/users/${user.githubID}/repos`, {
         params: {
           per_page: 100,

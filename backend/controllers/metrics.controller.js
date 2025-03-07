@@ -8,20 +8,20 @@ export const updateMetrics = async (req, res) => {
     const { userId } = req.params;
     const { repos, leetcode } = req.body;
 
-    // Check if metrics already exist
-    const existingMetrics = await StudentMetrics.findOne({ userId });
-    if (existingMetrics) {
-      return res.status(200).json({
-        success: true,
-        message: 'Metrics already exist',
-        metrics: existingMetrics
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ 
+        message: 'Invalid user ID format', 
+        success: false 
       });
     }
 
+    // Check if metrics already exist
+    let existingMetrics = await StudentMetrics.findOne({ userId });
+    
     const githubMetrics = calculateGitHubMetrics(repos);
     const leetcodeMetrics = calculateLeetCodeMetrics(leetcode);
 
-    const metrics = await StudentMetrics.create({
+    const metricsData = {
       userId,
       github: {
         repositories: {
@@ -53,13 +53,31 @@ export const updateMetrics = async (req, res) => {
         ranking: leetcodeMetrics.consistency?.ranking || 0
       } : null,
       lastUpdated: new Date()
-    });
+    };
 
-    res.status(201).json({
-      success: true,
-      message: 'Metrics created successfully',
-      metrics
-    });
+    if (existingMetrics) {
+      // Update existing metrics
+      existingMetrics = await StudentMetrics.findOneAndUpdate(
+        { userId },
+        metricsData,
+        { new: true }
+      );
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Metrics updated successfully',
+        metrics: existingMetrics
+      });
+    } else {
+      // Create new metrics
+      const newMetrics = await StudentMetrics.create(metricsData);
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Metrics created successfully',
+        metrics: newMetrics
+      });
+    }
   } catch (error) {
     console.error('Metrics Error:', error);
     res.status(500).json({
