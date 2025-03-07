@@ -38,6 +38,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import MessageStudent from "../../MessageStudent";
+import DomainRecommendations from './DomainRecommendations';
 
 const StudentDetailGit = () => {
   const { userId } = useParams();
@@ -78,6 +79,27 @@ const StudentDetailGit = () => {
         setClassData(studentData.classId[0]);
 
         if (studentData.githubID) {
+          // First fetch GitHub summary (fast)
+          let githubSummary = { 
+            totalRepos: 0, 
+            totalCommits: 0, 
+            activeRepos: 0,
+            totalStars: 0,
+            totalForks: 0
+          };
+          
+          const summaryResult = await fetchGithubSummary(userId);
+          if (!isMounted) return;
+          
+          if (summaryResult.success) {
+            githubSummary = summaryResult.summary;
+            console.log('Successfully fetched GitHub summary:', githubSummary);
+            
+            // Set metrics from summary immediately so we have some data to show
+            setMetrics(githubSummary);
+          }
+          
+          // Then fetch detailed repo data
           const result = await fetchGithubRepos(userId);
           if (!isMounted) return;
           
@@ -89,18 +111,63 @@ const StudentDetailGit = () => {
               setLanguageUsage(processLanguageUsage(result.repos));
               setMostActiveRepos(getMostActiveRepos(result.repos));
               
-              const metricsData = await updateMetrics(
-                userId, 
-                result.repos, 
-                studentData.leetCodeID ? await fetchLeetCodeData(userId) : null
-              );
-              if (!isMounted) return;
-              setMetrics(metricsData);
+              // Use both detailed repos and summary data for metrics
+              // If we have detailed repos, we can enhance the summary data
+              const enhancedMetrics = {
+                totalRepos: Math.max(githubSummary.totalRepos, result.repos.length),
+                totalCommits: Math.max(
+                  githubSummary.totalCommits, 
+                  result.repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0)
+                ),
+                activeRepos: Math.max(
+                  githubSummary.activeRepos,
+                  result.repos.filter(repo => (repo.commits?.length || 0) > 0).length
+                ),
+                totalStars: Math.max(
+                  githubSummary.totalStars,
+                  result.repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0)
+                ),
+                totalForks: Math.max(
+                  githubSummary.totalForks,
+                  result.repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0)
+                )
+              };
+              
+              setMetrics(enhancedMetrics);
+              
+              // Update metrics on the server
+              try {
+                const metricsData = await updateMetrics(
+                  userId, 
+                  result.repos, 
+                  studentData.leetCodeID ? await fetchLeetCodeData(userId) : null
+                );
+                if (!isMounted) return;
+                // Only update if we got valid data back
+                if (metricsData && Object.keys(metricsData).length > 0) {
+                  setMetrics(metricsData);
+                }
+              } catch (metricsError) {
+                console.error('Error updating metrics:', metricsError);
+                // We already have metrics from summary, so we can continue
+              }
+            } else if (githubSummary.totalRepos > 0) {
+              // If we have summary data but no detailed repos, use the summary
+              setLanguageUsage({});
+              setMostActiveRepos([]);
+              setCommitFrequency([]);
+              
+              // Use the summary data we already set earlier
             } else {
               setError("No GitHub repositories found for this student.");
             }
           } else {
-            setError(result.error || "Failed to fetch GitHub data");
+            // If detailed repo fetch fails but we have summary, use summary
+            if (githubSummary.totalRepos > 0) {
+              // We already set metrics from summary earlier, so no need to do it again
+            } else {
+              setError(result.error || "Failed to fetch GitHub data");
+            }
           }
         } else {
           setError("Student does not have a GitHub username configured.");
@@ -120,7 +187,6 @@ const StudentDetailGit = () => {
     };
 
     console.log("Fetching all data for userId:", userId);
-    console.log(fetchAllData());
     fetchAllData();
 
     return () => {
@@ -354,7 +420,10 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <GitHubMetrics repos={studentRepos} />
+              <GitHubMetrics 
+                repos={studentRepos} 
+                summary={metrics} 
+              />
             </CardContent>
           </Card>
 
@@ -444,6 +513,10 @@ const StudentDetailGit = () => {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mt-8">
+          <DomainRecommendations languages={languageUsage} />
         </div>
 
         <div className="mt-8">
@@ -748,38 +821,65 @@ const MostActiveReposList = ({ repos }) => (
   </div>
 );
 
-const GitHubMetrics = ({ repos }) => {
-  // Calculate metrics
-  const totalRepos = repos.length;
-  const totalCommits = repos.reduce((sum, repo) => sum + repo.commits.length, 0);
-  const totalStars = repos.reduce((sum, repo) => sum + repo.stargazers_count, 0);
-  const totalForks = repos.reduce((sum, repo) => sum + repo.forks_count, 0);
+const GitHubMetrics = ({ repos, summary = null }) => {
+  // Calculate metrics from repos if available, otherwise use summary
+  const totalRepos = repos.length > 0 ? repos.length : (summary?.totalRepos || 0);
+  const totalCommits = repos.length > 0 
+    ? repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0) 
+    : (summary?.totalCommits || 0);
+  
+  const totalStars = repos.length > 0
+    ? repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0)
+    : (summary?.totalStars || 0);
+    
+  const totalForks = repos.length > 0
+    ? repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0)
+    : (summary?.totalForks || 0);
   
   // Calculate activity metrics
-  const activeRepos = repos.filter(repo => repo.commits.length > 0).length;
-  const recentActivity = repos.filter(repo => {
-    const lastPush = new Date(repo.pushed_at);
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    return lastPush > oneMonthAgo;
-  }).length;
+  const activeRepos = repos.length > 0
+    ? repos.filter(repo => (repo.commits?.length || 0) > 0).length
+    : (summary?.activeRepos || 0);
+    
+  const recentActivity = repos.length > 0
+    ? repos.filter(repo => {
+        const lastPush = new Date(repo.pushed_at);
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        return lastPush > oneMonthAgo;
+      }).length
+    : (summary?.activeRepos || 0); // Use activeRepos as a fallback for recentActivity
 
-  // Calculate language distribution
-  const languages = repos.reduce((acc, repo) => {
+  // For debugging
+  console.log('GitHubMetrics rendering with:', { 
+    reposLength: repos.length, 
+    summary, 
+    calculatedMetrics: {
+      totalRepos,
+      totalCommits,
+      activeRepos,
+      totalStars,
+      totalForks,
+      recentActivity
+    }
+  });
+
+  // Calculate language distribution (only if we have detailed repos)
+  const languages = repos.length > 0 ? repos.reduce((acc, repo) => {
     if (repo.language) {
       acc[repo.language] = (acc[repo.language] || 0) + 1;
     }
     return acc;
-  }, {});
+  }, {}) : {};
 
-  // Calculate commit frequency
-  const commitsByMonth = repos.reduce((acc, repo) => {
-    repo.commits.forEach(commit => {
+  // Calculate commit frequency (only if we have detailed repos)
+  const commitsByMonth = repos.length > 0 ? repos.reduce((acc, repo) => {
+    (repo.commits || []).forEach(commit => {
       const month = new Date(commit.date).toLocaleString('default', { month: 'long' });
       acc[month] = (acc[month] || 0) + 1;
     });
     return acc;
-  }, {});
+  }, {}) : {};
 
   return (
     <div className="space-y-6">
@@ -802,12 +902,12 @@ const GitHubMetrics = ({ repos }) => {
               <ProgressMetric 
                 label="Active Repositories"
                 value={activeRepos}
-                total={totalRepos}
+                total={Math.max(totalRepos, 1)} // Avoid division by zero
               />
               <ProgressMetric 
                 label="Recent Activity"
                 value={recentActivity}
-                total={totalRepos}
+                total={Math.max(totalRepos, 1)} // Avoid division by zero
               />
             </div>
           </CardContent>
@@ -992,5 +1092,37 @@ const LeetCodeSection = ({ leetcodeData }) => {
       </div>
     </div>
   );
+};
+
+// Add this function to fetch GitHub summary data
+const fetchGithubSummary = async (userId) => {
+  try {
+    console.log(`Fetching GitHub summary for user: ${userId}`);
+    const response = await api.get(`/github/${userId}/summary`);
+    
+    if (!response.data.success) {
+      throw new Error('Failed to fetch GitHub summary');
+    }
+    
+    console.log('GitHub summary response:', response.data);
+    return {
+      success: true,
+      summary: response.data.summary,
+      fromCache: response.data.fromCache
+    };
+  } catch (error) {
+    console.error('Error fetching GitHub summary:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch GitHub summary',
+      summary: {
+        totalRepos: 0,
+        totalCommits: 0,
+        activeRepos: 0,
+        totalStars: 0,
+        totalForks: 0
+      }
+    };
+  }
 };
 

@@ -3,6 +3,13 @@ import mongoose from 'mongoose';
 const githubDataSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   githubId: { type: String, required: true },
+  summary: {
+    totalRepos: { type: Number, default: 0 },
+    totalCommits: { type: Number, default: 0 },
+    activeRepos: { type: Number, default: 0 },
+    totalStars: { type: Number, default: 0 },
+    totalForks: { type: Number, default: 0 }
+  },
   repos: [{
     id: Number,
     name: String,
@@ -18,7 +25,9 @@ const githubDataSchema = new mongoose.Schema({
     commits: [{
       message: String,
       date: Date,
-      url: String
+      url: String,
+      author: String,
+      sha: String
     }]
   }],
   lastUpdated: { type: Date, default: Date.now }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Accordion,
@@ -45,20 +45,12 @@ import LearningResources from './Github/studentMetrics/LearningResources';
 import CareerRoadmap from './Github/studentMetrics/CareerRoadmap';
 import { getDomainSuggestions } from '@/utils/domainSuggestions';
 
-const GitHubMetrics = ({ repos }) => {
-  // Calculate metrics
-  const totalRepos = repos.length;
-  const totalCommits = repos.reduce(
-    (sum, repo) => sum + repo.commits.length,
-    0
-  );
-  const activeRepos = repos.filter((repo) => repo.commits.length > 0).length;
-  const recentActivity = repos.filter((repo) => {
-    const lastPush = new Date(repo.pushed_at);
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    return lastPush > oneMonthAgo;
-  }).length;
+const GitHubMetrics = ({ stats }) => {
+  // Use the summary data from stats
+  const totalRepos = stats.totalRepos || 0;
+  const totalCommits = stats.totalCommits || 0;
+  const activeRepos = stats.activeRepos || 0;
+  const recentActivity = stats.activeRepos || 0;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -118,7 +110,7 @@ const calculateImpactScore = (metrics) => {
   return Math.min(starsScore + forksScore, 100);
 };
 
-const calculateGitHubMetrics = (repos) => {
+const calculateGitHubMetrics = (repos, summary = null) => {
   const now = new Date();
   const ninetyDaysAgo = new Date(now.setDate(now.getDate() - 90));
   
@@ -129,19 +121,43 @@ const calculateGitHubMetrics = (repos) => {
       repositories: new Set(),
     },
     impact: {
-      totalStars: 0,
-      totalForks: 0,
+      totalStars: summary?.totalStars || 0,
+      totalForks: summary?.totalForks || 0,
       contributionStreak: 0,
     }
   };
 
-  if (!repos || repos.length === 0) {
+  if ((!repos || repos.length === 0) && !summary) {
     return {
       raw: metrics,
       scores: {
         activity: 0,
         quality: 0,
         impact: 0
+      }
+    };
+  }
+
+  // If we have summary data but no detailed repos, use the summary
+  if ((!repos || repos.length === 0) && summary) {
+    // Estimate activity metrics from summary
+    metrics.recentActivity.commits = Math.round(summary.totalCommits * 0.3); // Estimate 30% of commits are recent
+    metrics.recentActivity.repositories = new Set(Array(summary.activeRepos).fill().map((_, i) => `repo-${i}`));
+    metrics.recentActivity.activeDays = new Set(Array(Math.min(30, summary.activeRepos * 3)).fill().map((_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      return date.toISOString().split('T')[0];
+    }));
+    
+    metrics.impact.totalStars = summary.totalStars;
+    metrics.impact.totalForks = summary.totalForks;
+    
+    return {
+      raw: metrics,
+      scores: {
+        activity: calculateActivityScore(metrics),
+        quality: calculateCodeQualityScore(metrics),
+        impact: calculateImpactScore(metrics)
       }
     };
   }
@@ -164,6 +180,17 @@ const calculateGitHubMetrics = (repos) => {
     metrics.impact.totalStars += repo.stargazers_count || 0;
     metrics.impact.totalForks += repo.forks_count || 0;
   });
+
+  // If we have summary data, use it to enhance our metrics
+  if (summary) {
+    // If summary has more stars/forks than what we calculated, use the summary values
+    if (summary.totalStars > metrics.impact.totalStars) {
+      metrics.impact.totalStars = summary.totalStars;
+    }
+    if (summary.totalForks > metrics.impact.totalForks) {
+      metrics.impact.totalForks = summary.totalForks;
+    }
+  }
 
   return {
     raw: metrics,
@@ -242,6 +269,7 @@ const getAssignmentStatus = (dueDate, submitted) => {
 
 const StudentDashboard = () => {
   const user = useSelector((state) => state.auth.user);
+  const isMountedRef = useRef(true);
   const [student, setStudent] = useState();
   const [classData, setClassData] = useState();
   const [studentRepos, setStudentRepos] = useState([]);
@@ -254,10 +282,6 @@ const StudentDashboard = () => {
   const [commitFrequency, setCommitFrequency] = useState([]);
   const [languageUsage, setLanguageUsage] = useState({});
   const [mostActiveRepos, setMostActiveRepos] = useState([]);
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().setDate(new Date().getDate() - 90)), // Last 90 days
-    endDate: new Date()
-  });
   const [loading, setLoading] = useState(true);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [isLoadingCommits, setIsLoadingCommits] = useState(false);
@@ -294,169 +318,146 @@ const StudentDashboard = () => {
     return processLanguageUsage(studentData.repos);
   }, [studentData.repos]);
 
-  const memoizedCommitFrequency = useMemo(() => {
-    return processCommitFrequency(studentData.repos, dateRange.startDate, dateRange.endDate);
-  }, [studentData.repos, dateRange.startDate, dateRange.endDate]);
 
   const memoizedActiveRepos = useMemo(() => {
     return getMostActiveRepos(studentData.repos);
   }, [studentData.repos]);
 
-  useEffect(() => {
-    // Create a flag to track if the component is mounted
-    let isMounted = true;
-    
-    const fetchAllData = async () => {
-      if (!user?._id) return;
+  const fetchGithubSummary = async (userId) => {
+    try {
+      const response = await api.get(`/github/${userId}/summary`);
+      if (!response.data.success) {
+        throw new Error('Failed to fetch GitHub summary');
+      }
+      return {
+        success: true,
+        summary: response.data.summary,
+        fromCache: response.data.fromCache
+      };
+    } catch (error) {
+      console.error('Error fetching GitHub summary:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch GitHub summary',
+        summary: {
+          totalRepos: 0,
+          totalCommits: 0,
+          activeRepos: 0,
+          totalStars: 0,
+          totalForks: 0
+        }
+      };
+    }
+  };
 
+  const fetchAllData = async () => {
+    if (!user?._id) return;
+
+    try {
+      setLoading(true);
+      
+      // Fetch student data
+      const studentResponse = await api.get(`/user/${user._id}`);
+      if (!isMountedRef.current) return;
+      const studentData = studentResponse.data.user;
+      
+      // Set notifications from user data if available
+      if (studentData && studentData.notifications) {
+        setNotifications(studentData.notifications || []);
+        setNotificationsLoading(false);
+      }
+
+      // First fetch GitHub summary (fast)
+      let githubSummary = { 
+        totalRepos: 0, 
+        totalCommits: 0, 
+        activeRepos: 0,
+        totalStars: 0,
+        totalForks: 0
+      };
+      
+      if (studentData.githubID) {
+        const summaryResult = await fetchGithubSummary(user._id);
+        if (!isMountedRef.current) return;
+        
+        if (summaryResult.success) {
+          githubSummary = summaryResult.summary;
+        }
+      }
+      
+      // Fetch GitHub repos (only first page for detailed view)
+      let repos = [];
+      let leetCodeData = null;
+      
+      if (studentData.githubID) {
+        const studentRepo = await api.get(`/github/${user._id}/repos`);
+        if (!isMountedRef.current) return;
+        repos = studentRepo.data.repos || [];
+      }
+
+      // Process GitHub stats using both summary and detailed data
+      const languageData = processLanguageUsage(repos);
+      
+      const stats = {
+        languageUsage: languageData,
+        mostActiveRepos: getMostActiveRepos(repos),
+        totalCommits: githubSummary.totalCommits || repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
+        totalRepos: githubSummary.totalRepos || repos.length,
+        activeRepos: githubSummary.activeRepos || repos.filter(repo => repo.commits?.length > 0).length,
+        totalStars: githubSummary.totalStars || repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0),
+        totalForks: githubSummary.totalForks || repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0),
+        detailedMetrics: calculateGitHubMetrics(repos, githubSummary)
+      };
+
+      // Get LeetCode data if available
+      if (studentData.leetCodeID) {
+        try {
+          const leetCodeResponse = await api.get(`/lcodeprofile/${user._id}`);
+          if (!isMountedRef.current) return;
+          leetCodeData = leetCodeResponse.data;
+        } catch (error) {
+          console.error("Error fetching LeetCode data:", error);
+        }
+      }
+
+      // Update all state at once to minimize re-renders
+      if (isMountedRef.current) {
+        setStudentData({
+          student: studentData,
+          classData: studentData.classId?.[0] || null,
+          repos: repos,
+          leetCode: leetCodeData
+        });
+
+        setGithubStats(stats);
+      }
+
+      // Fetch assignments
       try {
-        setLoading(true);
-        
-        // Fetch student data
-        const studentResponse = await api.get(`/user/${user._id}`);
-        if (!isMounted) return;
-        const studentData = studentResponse.data.user;
-        
-        // Set notifications from user data if available
-        if (studentData && studentData.notifications) {
-          setNotifications(studentData.notifications || []);
-          setNotificationsLoading(false);
-        }
-
-        // Fetch GitHub repos
-        let repos = [];
-        let leetCodeData = null;
-        
-        if (studentData.githubID) {
-          const studentRepo = await api.get(`/github/${user._id}/repos`);
-          if (!isMounted) return;
-          repos = studentRepo.data.repos || [];
-        }
-
-        // Process GitHub stats
-        const languageData = processLanguageUsage(repos);
-        
-        const stats = {
-          commitFrequency: processCommitFrequency(repos, dateRange.startDate, dateRange.endDate),
-          languageUsage: languageData,
-          mostActiveRepos: getMostActiveRepos(repos),
-          totalCommits: repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
-          detailedMetrics: calculateGitHubMetrics(repos)
-        };
-
-        // Get LeetCode data if available
-        if (studentData.leetCodeID) {
-          try {
-            const leetCodeResponse = await api.get(`/lcodeprofile/${user._id}`);
-            if (!isMounted) return;
-            leetCodeData = leetCodeResponse.data;
-          } catch (error) {
-            console.error("Error fetching LeetCode data:", error);
-          }
-        }
-
-        // Update all state at once to minimize re-renders
-        if (isMounted) {
-          setStudentData({
-            student: studentData,
-            classData: studentData.classId,
-            repos: repos,
-            leetCode: leetCodeData,
-          });
-          setGithubStats(stats);
-          
-          // Fetch assignments and notifications only if needed
-          if (!studentData.notifications) {
-            fetchNotifications();
-          }
-          fetchAssignments();
-        }
+        const assignmentsResponse = await api.get(`/assignment/student/${user._id}`);
+        if (!isMountedRef.current) return;
+        setAssignments(assignmentsResponse.data.assignments || []);
       } catch (error) {
-        if (isMounted) {
-          console.error("Error fetching data:", error);
-          toast.error("Failed to fetch your data. Please try again.");
-        }
+        console.error("Error fetching assignments:", error);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMountedRef.current) setAssignmentsLoading(false);
       }
-    };
 
+    } catch (error) {
+      if (isMountedRef.current) {
+        console.error("Error fetching data:", error);
+        setError(error.message || "Failed to load data");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
     fetchAllData();
-    
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      isMounted = false;
-    };
-  }, [user?._id, dateRange.startDate, dateRange.endDate]);
-
-  const fetchAssignments = async () => {
-    if (!user?._id) return;
-    
-    try {
-      setAssignmentsLoading(true);
-      
-      // First try to get assignments directly associated with the student
-      const response = await api.get(`/assignment/student/${user._id}`);
-      
-      if (response.data.success && response.data.assignments?.length > 0) {
-        setAssignments(response.data.assignments);
-      } else if (studentData.student?.classId) {
-        // If no assignments found, try to get assignments for the student's class
-        const classId = Array.isArray(studentData.student.classId) 
-          ? studentData.student.classId[0]
-          : studentData.student.classId;
-          
-        // Try to fetch assignments for the student's class
-        const classResponse = await api.get(`/assignment/class/${classId}`);
-        
-        if (classResponse.data.success && classResponse.data.assignments) {
-          // Process assignments to add empty studentRepo entries if needed
-          const processedAssignments = classResponse.data.assignments.map(assignment => {
-            // If student doesn't have a repo entry yet, add a placeholder
-            if (!assignment.studentRepos?.some(repo => repo.studentId === user._id)) {
-              assignment.studentRepos = [
-                ...(assignment.studentRepos || []),
-                { studentId: { _id: user._id }, submitted: false }
-              ];
-            }
-            return assignment;
-          });
-          
-          setAssignments(processedAssignments);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching assignments:', error);
-      toast.error('Failed to fetch assignments');
-    } finally {
-      setAssignmentsLoading(false);
-    }
-  };
-
-  const fetchNotifications = async () => {
-    if (!user?._id) return;
-    
-    try {
-      setNotificationsLoading(true);
-      // Use the user data that already contains notifications
-      if (studentData.student && studentData.student.notifications) {
-        setNotifications(studentData.student.notifications || []);
-      } else {
-        // Only fetch if we don't already have the data
-        const response = await api.get(`/user/${user._id}`);
-        if (response.data.success && response.data.user) {
-          setNotifications(response.data.user.notifications || []);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      toast.error('Failed to fetch notifications');
-    } finally {
-      setNotificationsLoading(false);
-    }
-  };
+  }, [user?._id]);
 
   const handleSubmitAssignment = async (assignmentId) => {
     try {
@@ -568,15 +569,11 @@ const StudentDashboard = () => {
                 <div className="space-y-2">
                   <p>
                     <span className="font-semibold">Total Repositories:</span>{" "}
-                    {studentData.repos.length}
+                    {githubStats.totalRepos || 0}
                   </p>
                   <p>
                     <span className="font-semibold">Total Commits:</span>{" "}
-                    {studentData.repos.reduce(
-                      (sum, repo) =>
-                        sum + (repo.commits ? repo.commits.length : 0),
-                      0
-                    )}
+                    {githubStats.totalCommits || 0}
                   </p>
                 </div>
               </CardContent>
@@ -764,7 +761,7 @@ const StudentDashboard = () => {
               <CardTitle>Student Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <GitHubMetrics repos={studentData.repos} />
+              <GitHubMetrics stats={githubStats} />
             </CardContent>
           </Card>
 
@@ -884,7 +881,7 @@ const StudentDashboard = () => {
                           
                           {/* Add Template Repository URL */}
                           <div className="mt-4 mb-4">
-                            <h4 className="text-sm font-medium text-gray-700 mb-2">Template Repository:</h4>
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Assignment Repository:</h4>
                             {templateRepoUrl ? (
                               <div className="flex items-center bg-gray-50 p-2 rounded-md border">
                                 <input 
@@ -1033,20 +1030,6 @@ const StudentDashboard = () => {
           <Card className="col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChartIcon className="w-5 h-5" />
-                Commit Frequency
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[450px]">
-                <CommitFrequencyChart data={githubStats.commitFrequency} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
                 <PieChartIcon className="w-5 h-5" />
                 Language Usage
               </CardTitle>
@@ -1076,31 +1059,6 @@ const StudentDashboard = () => {
 };
 
 export default StudentDashboard;
-
-const CommitFrequencyChart = ({ data }) => (
-  <ResponsiveContainer width="100%" height={400}>
-    <LineChart data={data}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis
-        dataKey="date"
-        tickFormatter={(tick) => new Date(tick).toLocaleDateString()}
-        interval="preserveStartEnd"
-      />
-      <YAxis />
-      <Tooltip
-        labelFormatter={(label) => new Date(label).toLocaleDateString()}
-        formatter={(value) => [`${value} commits`, "Commits"]}
-      />
-      <Line
-        type="monotone"
-        dataKey="count"
-        stroke="#8884d8"
-        strokeWidth={2}
-        dot={false}
-      />
-    </LineChart>
-  </ResponsiveContainer>
-);
 
 const LanguageUsageChart = ({ data }) => {
   const chartData = Object.entries(data)
