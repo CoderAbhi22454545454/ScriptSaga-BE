@@ -133,7 +133,8 @@ const StudentDetailGit = () => {
                 )
               };
               
-              setMetrics(enhancedMetrics);
+          
+              setMetrics(githubSummary);
               
               // Update metrics on the server
               try {
@@ -145,7 +146,15 @@ const StudentDetailGit = () => {
                 if (!isMounted) return;
                 // Only update if we got valid data back
                 if (metricsData && Object.keys(metricsData).length > 0) {
-                  setMetrics(metricsData);
+                  // Ensure we preserve the core summary metrics structure
+                  setMetrics({
+                    totalRepos: metricsData.totalRepos || enhancedMetrics.totalRepos,
+                    totalCommits: metricsData.totalCommits || enhancedMetrics.totalCommits,
+                    activeRepos: metricsData.activeRepos || enhancedMetrics.activeRepos,
+                    totalStars: metricsData.totalStars || enhancedMetrics.totalStars,
+                    totalForks: metricsData.totalForks || enhancedMetrics.totalForks,
+                    ...metricsData // Include any additional metrics
+                  });
                 }
               } catch (metricsError) {
                 console.error('Error updating metrics:', metricsError);
@@ -420,10 +429,7 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <GitHubMetrics 
-                repos={studentRepos} 
-                summary={metrics} 
-              />
+              <GitHubMetrics stats={metrics} />
             </CardContent>
           </Card>
 
@@ -821,116 +827,21 @@ const MostActiveReposList = ({ repos }) => (
   </div>
 );
 
-const GitHubMetrics = ({ repos, summary = null }) => {
-  // Calculate metrics from repos if available, otherwise use summary
-  const totalRepos = repos.length > 0 ? repos.length : (summary?.totalRepos || 0);
-  const totalCommits = repos.length > 0 
-    ? repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0) 
-    : (summary?.totalCommits || 0);
+const GitHubMetrics = ({ stats }) => {
+  console.log('Stats received in GitHubMetrics:', stats);
   
-  const totalStars = repos.length > 0
-    ? repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0)
-    : (summary?.totalStars || 0);
-    
-  const totalForks = repos.length > 0
-    ? repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0)
-    : (summary?.totalForks || 0);
-  
-  // Calculate activity metrics
-  const activeRepos = repos.length > 0
-    ? repos.filter(repo => (repo.commits?.length || 0) > 0).length
-    : (summary?.activeRepos || 0);
-    
-  const recentActivity = repos.length > 0
-    ? repos.filter(repo => {
-        const lastPush = new Date(repo.pushed_at);
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        return lastPush > oneMonthAgo;
-      }).length
-    : (summary?.activeRepos || 0); // Use activeRepos as a fallback for recentActivity
-
-  // For debugging
-  console.log('GitHubMetrics rendering with:', { 
-    reposLength: repos.length, 
-    summary, 
-    calculatedMetrics: {
-      totalRepos,
-      totalCommits,
-      activeRepos,
-      totalStars,
-      totalForks,
-      recentActivity
-    }
-  });
-
-  // Calculate language distribution (only if we have detailed repos)
-  const languages = repos.length > 0 ? repos.reduce((acc, repo) => {
-    if (repo.language) {
-      acc[repo.language] = (acc[repo.language] || 0) + 1;
-    }
-    return acc;
-  }, {}) : {};
-
-  // Calculate commit frequency (only if we have detailed repos)
-  const commitsByMonth = repos.length > 0 ? repos.reduce((acc, repo) => {
-    (repo.commits || []).forEach(commit => {
-      const month = new Date(commit.date).toLocaleString('default', { month: 'long' });
-      acc[month] = (acc[month] || 0) + 1;
-    });
-    return acc;
-  }, {}) : {};
+  // Use the summary data from stats, with fallbacks for different structures
+  const totalRepos = stats?.totalRepos || stats?.repos?.length || 0;
+  const totalCommits = stats?.totalCommits || stats?.commits || 0;
+  const activeRepos = stats?.activeRepos || 0;
+  const recentActivity = stats?.activeRepos || 0;
 
   return (
-    <div className="space-y-6">
-      {/* Overview Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard title="Total Repositories" value={totalRepos} />
-        <StatCard title="Active Repositories" value={activeRepos} />
-        <StatCard title="Total Commits" value={totalCommits} />
-        <StatCard title="Recent Activity" value={`${recentActivity} repos`} />
-      </div>
-
-      {/* Engagement Metrics */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Repository Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <ProgressMetric 
-                label="Active Repositories"
-                value={activeRepos}
-                total={Math.max(totalRepos, 1)} // Avoid division by zero
-              />
-              <ProgressMetric 
-                label="Recent Activity"
-                value={recentActivity}
-                total={Math.max(totalRepos, 1)} // Avoid division by zero
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Community Engagement</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Stars Received</span>
-                <span className="font-bold">{totalStars}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Forks</span>
-                <span className="font-bold">{totalForks}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <StatCard title="Total Repositories" value={totalRepos} />
+      <StatCard title="Active Repositories" value={activeRepos} />
+      <StatCard title="Total Commits" value={totalCommits} />
+      <StatCard title="Recent Activity" value={`${recentActivity} repos`} />
     </div>
   );
 };
@@ -939,21 +850,6 @@ const StatCard = ({ title, value }) => (
   <div className="bg-white rounded-lg p-4 shadow">
     <h3 className="text-sm text-gray-500">{title}</h3>
     <p className="text-2xl font-bold mt-1">{value}</p>
-  </div>
-);
-
-const ProgressMetric = ({ label, value, total }) => (
-  <div>
-    <div className="flex justify-between mb-1">
-      <span>{label}</span>
-      <span>{Math.round((value / total) * 100)}%</span>
-    </div>
-    <div className="w-full bg-gray-200 rounded-full h-2">
-      <div 
-        className="bg-blue-600 h-2 rounded-full"
-        style={{ width: `${(value / total) * 100}%` }}
-      />
-    </div>
   </div>
 );
 
@@ -1094,35 +990,44 @@ const LeetCodeSection = ({ leetcodeData }) => {
   );
 };
 
-// Add this function to fetch GitHub summary data
 const fetchGithubSummary = async (userId) => {
   try {
-    console.log(`Fetching GitHub summary for user: ${userId}`);
+    // Try the first endpoint format
     const response = await api.get(`/github/${userId}/summary`);
-    
     if (!response.data.success) {
       throw new Error('Failed to fetch GitHub summary');
     }
-    
-    console.log('GitHub summary response:', response.data);
     return {
       success: true,
       summary: response.data.summary,
       fromCache: response.data.fromCache
     };
   } catch (error) {
-    console.error('Error fetching GitHub summary:', error);
-    return {
-      success: false,
-      error: error.response?.data?.message || 'Failed to fetch GitHub summary',
-      summary: {
-        totalRepos: 0,
-        totalCommits: 0,
-        activeRepos: 0,
-        totalStars: 0,
-        totalForks: 0
+    try {
+      // If the first endpoint fails, try the second format
+      const fallbackResponse = await api.get(`/${userId}/summary`);
+      if (!fallbackResponse.data.success) {
+        throw new Error('Failed to fetch GitHub summary');
       }
-    };
+      return {
+        success: true,
+        summary: fallbackResponse.data.summary,
+        fromCache: fallbackResponse.data.fromCache
+      };
+    } catch (fallbackError) {
+      console.error('Error fetching GitHub summary:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch GitHub summary',
+        summary: {
+          totalRepos: 0,
+          totalCommits: 0,
+          activeRepos: 0,
+          totalStars: 0,
+          totalForks: 0
+        }
+      };
+    }
   }
 };
 
