@@ -62,6 +62,10 @@ const StudentDetailGit = () => {
   const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
+  const [isLoadingStudent, setIsLoadingStudent] = useState(true);
+  const [isLoadingGithubSummary, setIsLoadingGithubSummary] = useState(true);
+  const [isLoadingLeetCode, setIsLoadingLeetCode] = useState(true);
+  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -71,6 +75,10 @@ const StudentDetailGit = () => {
       
       try {
         setLoading(true);
+        setIsLoadingStudent(true);
+        setIsLoadingGithubSummary(true);
+        setIsLoadingLeetCode(true);
+        setIsLoadingCharts(true);
         setError(null);
 
         const studentData = await fetchStudentData(userId);
@@ -78,6 +86,7 @@ const StudentDetailGit = () => {
         
         setStudent(studentData);
         setClassData(studentData.classId[0]);
+        setIsLoadingStudent(false);
 
         if (studentData.githubID) {
           // First fetch GitHub summary (fast)
@@ -99,6 +108,7 @@ const StudentDetailGit = () => {
             // Set metrics from summary immediately so we have some data to show
             setMetrics(githubSummary);
           }
+          setIsLoadingGithubSummary(false);
           
           // Then fetch detailed repo data
           const result = await fetchGithubRepos(userId);
@@ -111,6 +121,7 @@ const StudentDetailGit = () => {
               setCommitFrequency(processCommitFrequency(result.repos, startDate, endDate));
               setLanguageUsage(processLanguageUsage(result.repos));
               setMostActiveRepos(getMostActiveRepos(result.repos));
+              setIsLoadingCharts(false);
               
               // Use both detailed repos and summary data for metrics
               // If we have detailed repos, we can enhance the summary data
@@ -194,6 +205,10 @@ const StudentDetailGit = () => {
         if (isMounted) {
           setLoading(false);
           setDataFetched(true);
+          setIsLoadingStudent(false);
+          setIsLoadingGithubSummary(false);
+          setIsLoadingLeetCode(false);
+          setIsLoadingCharts(false);
         }
       }
     };
@@ -396,7 +411,6 @@ const StudentDetailGit = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-2">
-
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
@@ -420,30 +434,35 @@ const StudentDetailGit = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <p className="text-lg">
-                <span className="font-semibold">Name:</span>{" "}
-                {student.firstName || "No data"} {student.lastName}
-              </p>
-              <p>
-                <span className="font-semibold">Email:</span>{" "}
-                {student.email || "No Data"}
-              </p>
-              <p>
-                <span className="font-semibold">Year of Study:</span>{" "}
-                {/* Class: {classData?.className} | Branch: {classData?.branch} | Division: {classData?.division} */}
-                {student.classId[0].className || "Student not in any class"}
+            {isLoadingStudent ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-lg">
+                  <span className="font-semibold">Name:</span>{" "}
+                  {student.firstName || "No data"} {student.lastName}
                 </p>
-              <p>
-                <span className="font-semibold">Branch:</span>{" "}
-                {student.classId[0].branch || "Student not in any class"}
-              </p>
-              <p>
-                <span className="font-semibold">Division:</span>{" "}
-                {student.classId[0].division || "Student not in any class"}
-              </p>
-            </div>
-    
+                <p>
+                  <span className="font-semibold">Email:</span>{" "}
+                  {student.email || "No Data"}
+                </p>
+                <p>
+                  <span className="font-semibold">Year of Study:</span>{" "}
+                  {/* Class: {classData?.className} | Branch: {classData?.branch} | Division: {classData?.division} */}
+                  {student.classId[0].className || "Student not in any class"}
+                  </p>
+                <p>
+                  <span className="font-semibold">Branch:</span>{" "}
+                  {student.classId[0].branch || "Student not in any class"}
+                </p>
+                <p>
+                  <span className="font-semibold">Division:</span>{" "}
+                  {student.classId[0].division || "Student not in any class"}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -471,7 +490,13 @@ const StudentDetailGit = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <GitHubMetrics stats={metrics} />
+            {isLoadingGithubSummary ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : (
+              <GitHubMetrics stats={metrics} />
+            )}
           </CardContent>
         </Card>
 
@@ -483,11 +508,17 @@ const StudentDetailGit = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {metrics && languageUsage && (
-              <DomainRecommendations 
-                languages={languageUsage} 
-                metrics={metrics}
-              />
+            {isLoadingCharts ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : (
+              metrics && languageUsage && (
+                <DomainRecommendations 
+                  languages={languageUsage} 
+                  metrics={metrics}
+                />
+              )
             )}
           </CardContent>
         </Card>
@@ -495,6 +526,7 @@ const StudentDetailGit = () => {
         <DetailedStudentProgress 
           repos={studentRepos} 
           leetCode={studentLeetCode} 
+          isLoading={isLoadingCharts} 
         />
       </div>
     );
@@ -528,60 +560,65 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {student?.leetCodeID ? (
-                studentLeetCode?.completeProfile ? (
-                  <>
-                       <div className="user-profile mb-10 mt-4 bg-gray-100 p-4 rounded-lg">
-                  <h1 className="text-md font-semibold">Basic Profile</h1>
-                  <p className="text-sm mt-4">
-                    <span className="font-semibold">Username:</span>{" "}
-                    {studentLeetCode.basicProfile.username}
-                  </p>
-                  <p className="mt-2 text-sm">
-                    <span className="font-medium">Rank:</span>{" "}
-                    {studentLeetCode.basicProfile.ranking}
-                  </p>
-                  <p className="mt-2 text-sm">
-                    <span className="font-medium">Contribution:</span>{" "}
-                    {studentLeetCode.basicProfile.reputation}
-                  </p>
+              {isLoadingLeetCode ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-blue-500 text-white p-4 rounded-lg">
-                      <p className="text-sm font-medium">Total Solved</p>
-                      <p className="text-2xl font-bold mt-1">
-                        {studentLeetCode.completeProfile.solvedProblem || 0}
-                      </p>
-                    </div>
-                    <div className="bg-green-500 text-white p-4 rounded-lg">
-                      <p className="text-sm font-medium">Easy Solved</p>
-                      <p className="text-2xl font-bold mt-1">
-                        {studentLeetCode.completeProfile.easySolved || 0}
-                      </p>
-                    </div>
-                    <div className="bg-yellow-500 text-white p-4 rounded-lg">
-                      <p className="text-sm font-medium">Medium Solved</p>
-                      <p className="text-2xl font-bold mt-1">
-                        {studentLeetCode.completeProfile.mediumSolved || 0}
-                      </p>
-                    </div>
-                    <div className="bg-red-500 text-white p-4 rounded-lg">
-                      <p className="text-sm font-medium">Hard Solved</p>
-                      <p className="text-2xl font-bold mt-1">
-                        {studentLeetCode.completeProfile.hardSolved || 0}
-                      </p>
-                    </div>
-                  </div>
-                   </>
-             
-                ) : (
-                  <p className="text-center text-gray-500">No LeetCode data available</p>
-                )
               ) : (
-                <p className="text-center text-gray-500">
-                  User has not linked their LeetCode account
-                </p>
+                student?.leetCodeID ? (
+                  studentLeetCode?.completeProfile ? (
+                    <>
+                      <div className="user-profile mb-10 mt-4 bg-gray-100 p-4 rounded-lg">
+                        <h1 className="text-md font-semibold">Basic Profile</h1>
+                        <p className="text-sm mt-4">
+                          <span className="font-semibold">Username:</span>{" "}
+                          {studentLeetCode.basicProfile.username}
+                        </p>
+                        <p className="mt-2 text-sm">
+                          <span className="font-medium">Rank:</span>{" "}
+                          {studentLeetCode.basicProfile.ranking}
+                        </p>
+                        <p className="mt-2 text-sm">
+                          <span className="font-medium">Contribution:</span>{" "}
+                          {studentLeetCode.basicProfile.reputation}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-blue-500 text-white p-4 rounded-lg">
+                          <p className="text-sm font-medium">Total Solved</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {studentLeetCode.completeProfile.solvedProblem || 0}
+                          </p>
+                        </div>
+                        <div className="bg-green-500 text-white p-4 rounded-lg">
+                          <p className="text-sm font-medium">Easy Solved</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {studentLeetCode.completeProfile.easySolved || 0}
+                          </p>
+                        </div>
+                        <div className="bg-yellow-500 text-white p-4 rounded-lg">
+                          <p className="text-sm font-medium">Medium Solved</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {studentLeetCode.completeProfile.mediumSolved || 0}
+                          </p>
+                        </div>
+                        <div className="bg-red-500 text-white p-4 rounded-lg">
+                          <p className="text-sm font-medium">Hard Solved</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {studentLeetCode.completeProfile.hardSolved || 0}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-center text-gray-500">No LeetCode data available</p>
+                  )
+                ) : (
+                  <p className="text-center text-gray-500">
+                    User has not linked their LeetCode account
+                  </p>
+                )
               )}
             </CardContent>
           </Card>
@@ -613,28 +650,28 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="max-h-[570px] overflow-auto">
-              {loading && (
+              {isLoadingRepos ? (
                 <div className="flex justify-center items-center py-10">
                   <Loader2 className="h-8 w-8 animate-spin mr-2" />
-                  <span>Loading GitHub data...</span>
+                  <span>Loading repositories...</span>
                 </div>
-              )}
-
-              {!loading && error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-                  <div className="flex items-center">
-                    <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                    <div>
-                      <p className="font-medium text-red-800">GitHub Data Error</p>
-                      <p className="text-sm text-red-600">{error}</p>
-                      {error.includes("not found") && (
-                        <p className="text-sm text-gray-600 mt-2">
-                          Please ensure your GitHub username is correct in your profile settings.
-                        </p>
-                      )}
+              ) : (
+                !loading && error && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+                    <div className="flex items-center">
+                      <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                      <div>
+                        <p className="font-medium text-red-800">GitHub Data Error</p>
+                        <p className="text-sm text-red-600">{error}</p>
+                        {error.includes("not found") && (
+                          <p className="text-sm text-gray-600 mt-2">
+                            Please ensure your GitHub username is correct in your profile settings.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )
               )}
 
               {!loading && studentRepos.some(repo => repo.isEmptyRepo) && (
@@ -746,11 +783,15 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              
-         
-              <div className="h-[450px]">
-                <CommitFrequencyChart data={commitFrequency} />
-              </div>
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center h-[450px]">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <div className="h-[450px]">
+                  <CommitFrequencyChart data={commitFrequency} />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -762,9 +803,15 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[350px]">
-                <LanguageUsageChart data={languageUsage} />
-              </div>
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center h-[350px]">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <div className="h-[350px]">
+                  <LanguageUsageChart data={languageUsage} />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -776,7 +823,13 @@ const StudentDetailGit = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <MostActiveReposList repos={mostActiveRepos} />
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <MostActiveReposList repos={mostActiveRepos} />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -884,25 +937,38 @@ const MostActiveReposList = ({ repos }) => (
 const GitHubMetrics = ({ stats }) => {
   console.log('Stats received in GitHubMetrics:', stats);
   
-  // Use the summary data from stats, with fallbacks for different structures
-  const totalRepos = stats?.totalRepos || stats?.repos?.length || 0;
-  const totalCommits = stats?.totalCommits || stats?.commits || 0;
-  const activeRepos = stats?.activeRepos || 0;
-  const recentActivity = stats?.activeRepos || 0;
-
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <StatCard title="Total Repositories" value={totalRepos} />
-      <StatCard title="Active Repositories" value={activeRepos} />
-      <StatCard title="Total Commits" value={totalCommits} />
-      <StatCard title="Recent Activity" value={`${recentActivity} repos`} />
+      <StatCard 
+        title="Public Repositories" 
+        value={stats?.totalRepos || 0}
+        icon={<GitBranch className="h-4 w-4 text-blue-500" />}
+      />
+      <StatCard 
+        title="Total Stars" 
+        value={stats?.totalStars || 0}
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
+      />
+      <StatCard 
+        title="Repository Forks" 
+        value={stats?.totalForks || 0}
+        icon={<GitBranch className="h-4 w-4 text-green-500" />}
+      />
+      <StatCard 
+        title="Last Updated" 
+        value={stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleDateString() : 'N/A'}
+        icon={<RefreshCw className="h-4 w-4 text-purple-500" />}
+      />
     </div>
   );
 };
 
-const StatCard = ({ title, value }) => (
-  <div className="bg-white rounded-lg p-4 shadow">
-    <h3 className="text-sm text-gray-500">{title}</h3>
+const StatCard = ({ title, value, icon }) => (
+  <div className="bg-white rounded-lg p-4 shadow hover:shadow-md transition-shadow">
+    <div className="flex items-center gap-2 mb-2">
+      {icon}
+      <h3 className="text-sm text-gray-500">{title}</h3>
+    </div>
     <p className="text-2xl font-bold mt-1">{value}</p>
   </div>
 );
@@ -947,104 +1013,6 @@ const updateMetrics = async (userId, repos, leetcode) => {
     throw new Error('Failed to update metrics');
   }
   return response.data.metrics;
-};
-
-const LeetCodeSection = ({ leetcodeData }) => {
-  if (!leetcodeData || !leetcodeData.completeProfile) {
-    return null;
-  }
-
-
-
-  const { completeProfile, basicProfile, contests } = leetcodeData;
-  const totalSolved = completeProfile.solvedProblem || 0;
-
-  return (
-    <div className="mt-6">
-      <h2 className="text-2xl font-bold mb-4">LeetCode Statistics</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Problem Solving</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span>Total Solved</span>
-                <span className="font-bold">{totalSolved}</span>
-              </div>
-              <ProgressMetric 
-                label="Easy" 
-                value={completeProfile.easySolved || 0} 
-                total={totalSolved}
-                color="bg-green-500"
-              />
-              <ProgressMetric 
-                label="Medium" 
-                value={completeProfile.mediumSolved || 0} 
-                total={totalSolved}
-                color="bg-yellow-500"
-              />
-              <ProgressMetric 
-                label="Hard" 
-                value={completeProfile.hardSolved || 0} 
-                total={totalSolved}
-                color="bg-red-500"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Info</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Username</span>
-                <span className="font-bold">{basicProfile.username}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Global Ranking</span>
-                <span className="font-bold">{basicProfile.ranking?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Reputation</span>
-                <span className="font-bold">{basicProfile.reputation}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Activity Calendar</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-48">
-              {leetcodeData.calender?.submissionCalendar && (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={Object.entries(JSON.parse(leetcodeData.calender.submissionCalendar))
-                      .map(([date, count]) => ({
-                        date: new Date(parseInt(date) * 1000).toLocaleDateString(),
-                        submissions: count
-                      }))}
-                  >
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="submissions" stroke="#8884d8" />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
 };
 
 const fetchGithubSummary = async (userId) => {

@@ -78,6 +78,34 @@ export const getStudentReposWithCommits = async (req, res) => {
       const userProfileResponse = await githubApi.get(`/users/${user.githubID}`);
       const totalRepos = userProfileResponse.data.public_repos;
       
+      // If user has no repos, create minimal record
+      if (totalRepos === 0) {
+        const emptyData = {
+          userId,
+          githubId: user.githubID,
+          repos: [],
+          lastUpdated: Date.now()
+        };
+        
+        githubData = await GithubData.findOneAndUpdate(
+          { userId },
+          emptyData,
+          { upsert: true, new: true }
+        );
+        
+        return res.status(200).json({
+          success: true,
+          repos: [],
+          pagination: {
+            currentPage: 1,
+            totalPages: 0,
+            totalRepos: 0,
+            itemsPerPage: limit
+          },
+          fromCache: false
+        });
+      }
+      
       // Fetch all repositories with pagination
       let allRepos = [];
       let currentPage = 1;
@@ -156,6 +184,35 @@ export const getStudentReposWithCommits = async (req, res) => {
       });
     } catch (error) {
       console.error('GitHub API Error:', error);
+      
+      // Handle 404 Not Found error specifically
+      if (error.response?.status === 404) {
+        const emptyData = {
+          userId,
+          githubId: user.githubID,
+          repos: [],
+          lastUpdated: Date.now()
+        };
+        
+        githubData = await GithubData.findOneAndUpdate(
+          { userId },
+          emptyData,
+          { upsert: true, new: true }
+        );
+        
+        return res.status(200).json({
+          success: true,
+          repos: [],
+          pagination: {
+            currentPage: 1,
+            totalPages: 0,
+            totalRepos: 0,
+            itemsPerPage: limit
+          },
+          message: 'GitHub user not found',
+          fromCache: false
+        });
+      }
       
       // If we have existing data, return it despite the error
       if (githubData && githubData.repos) {
@@ -460,6 +517,39 @@ export const getStudentGitHubSummary = async (req, res) => {
       });
     } catch (error) {
       console.error('GitHub API Error:', error);
+      
+      // Handle 404 Not Found error specifically
+      if (error.response?.status === 404) {
+        const emptySummary = {
+          totalRepos: 0,
+          totalCommits: 0,
+          activeRepos: 0,
+          totalStars: 0,
+          totalForks: 0,
+          error: 'GitHub user not found'
+        };
+        
+        // Update or create record with empty data
+        githubData = await GithubData.findOneAndUpdate(
+          { userId },
+          { 
+            $set: {
+              userId,
+              githubId: user.githubID,
+              summary: emptySummary,
+              lastUpdated: Date.now()
+            }
+          },
+          { upsert: true, new: true }
+        );
+        
+        return res.status(200).json({
+          success: true,
+          summary: emptySummary,
+          message: 'GitHub user not found',
+          fromCache: false
+        });
+      }
       
       // If we have existing data, return it despite the error
       if (githubData && githubData.summary) {
