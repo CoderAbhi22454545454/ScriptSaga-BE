@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import api from '@/constants/constant';
 import { toast } from "sonner";
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ExternalLink, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Loader2, ExternalLink, CheckCircle, Clock, AlertTriangle, ClipboardCopy } from 'lucide-react';
 import { Navbar } from '@/components/shared/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 
 const StudentAssignmentView = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const user = useSelector((state) => state.auth.user);
   const studentData = useSelector((state) => state.student);
+  const [solutionUrls, setSolutionUrls] = useState({});
 
   useEffect(() => {
     fetchAssignments();
@@ -32,6 +34,18 @@ const StudentAssignmentView = () => {
       if (response.data.success && response.data.assignments?.length > 0) {
         console.log("Found assignments directly associated with student:", response.data.assignments);
         setAssignments(response.data.assignments);
+        
+        // Initialize solution URLs from existing submissions
+        const initialSolutionUrls = {};
+        response.data.assignments.forEach(assignment => {
+          const studentRepo = assignment.studentRepos.find(
+            repo => repo.studentId._id === user._id
+          );
+          if (studentRepo) {
+            initialSolutionUrls[assignment._id] = studentRepo.repoUrl || '';
+          }
+        });
+        setSolutionUrls(initialSolutionUrls);
       } else {
         console.log("No assignments found for student, checking class assignments");
         
@@ -79,6 +93,18 @@ const StudentAssignmentView = () => {
             
             console.log("Processed assignments with student repos:", processedAssignments);
             setAssignments(processedAssignments);
+            
+            // Initialize solution URLs for class assignments
+            const initialSolutionUrls = {};
+            processedAssignments.forEach(assignment => {
+              const studentRepo = assignment.studentRepos.find(
+                repo => repo.studentId._id === user._id
+              );
+              if (studentRepo) {
+                initialSolutionUrls[assignment._id] = studentRepo.repoUrl || '';
+              }
+            });
+            setSolutionUrls(initialSolutionUrls);
           } else {
             console.log("No class assignments found");
           }
@@ -106,11 +132,27 @@ const StudentAssignmentView = () => {
     return { label: "Upcoming", color: "bg-blue-100 text-blue-800", icon: <Clock className="h-4 w-4" /> };
   };
 
-  const handleSubmitAssignment = async (assignmentId, repoUrl) => {
+  const handleUpdateSolutionUrl = (assignmentId, url) => {
+    setSolutionUrls(prev => ({
+      ...prev,
+      [assignmentId]: url
+    }));
+  };
+
+  const handleSubmitAssignment = async (assignmentId) => {
     try {
+      const solutionUrl = solutionUrls[assignmentId];
+      
+      // Validate URL
+      if (!solutionUrl.match(/^https?:\/\/github\.com\/[a-zA-Z0-9-]+\/[a-zA-Z0-9-_]+\/?$/)) {
+        toast.error('Please enter a valid GitHub repository URL');
+        return;
+      }
+      
       const response = await api.post('/assignment/submit', {
         assignmentId,
-        studentId: user._id
+        studentId: user._id,
+        solutionUrl
       });
       
       if (response.data.success) {
@@ -142,7 +184,7 @@ const StudentAssignmentView = () => {
             <p className="text-gray-500">No assignments found.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {assignments.map((assignment) => {
               const studentRepo = assignment.studentRepos.find(
                 repo => repo.studentId._id === user._id
@@ -152,67 +194,116 @@ const StudentAssignmentView = () => {
                 assignment.dueDate, 
                 studentRepo?.submitted || false
               );
-              
-              const dueDate = new Date(assignment.dueDate);
-              const now = new Date();
-              const totalTime = new Date(assignment.dueDate) - new Date(assignment.createdAt);
-              const remainingTime = dueDate - now;
-              const progressPercentage = Math.max(
-                0, 
-                Math.min(100, 100 - (remainingTime / totalTime) * 100)
-              );
 
               return (
                 <Card key={assignment._id} className="overflow-hidden">
-                  <div className={`h-2 ${studentRepo?.submitted ? 'bg-green-500' : 'bg-blue-500'}`}></div>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-xl font-semibold">{assignment.title}</h3>
-                      <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                  <CardHeader className={`${status.color} border-b`}>
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg">{assignment.title}</CardTitle>
+                      <div className="flex items-center gap-1 text-sm font-medium">
                         {status.icon}
                         <span className="ml-1">{status.label}</span>
                       </div>
                     </div>
-                    
+                  </CardHeader>
+                  
+                  <CardContent className="p-6">
                     <p className="text-gray-600 mb-4">{assignment.description}</p>
                     
                     <div className="space-y-3 mb-4">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Due Date:</span>
-                        <span className="font-medium">{dueDate.toLocaleString()}</span>
+                        <span className="font-medium">{new Date(assignment.dueDate).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Points:</span>
                         <span className="font-medium">{assignment.points}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Class:</span>
-                        <span className="font-medium">{assignment.classId.name}</span>
+                    </div>
+                    
+                    {/* Assignment Repository URL */}
+                    <div className="mt-4 mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Assignment Repository:</h4>
+                      <div className="flex items-center bg-gray-50 p-2 rounded-md border">
+                        <input 
+                          type="text" 
+                          value={assignment.repoUrl || ""} 
+                          readOnly 
+                          className="flex-1 bg-transparent text-xs text-gray-700 focus:outline-none overflow-hidden text-ellipsis"
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            navigator.clipboard.writeText(assignment.repoUrl || "");
+                            toast.success("Repository URL copied to clipboard");
+                          }}
+                          className="ml-2"
+                        >
+                          <ClipboardCopy className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                     
+                    {/* Your Solution Repository URL */}
                     <div className="mb-4">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Progress</span>
-                        <span>{Math.round(progressPercentage)}%</span>
-                      </div>
-                      <Progress value={progressPercentage} className="h-2" />
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Your Solution Repository URL:</h4>
+                      {studentRepo?.submitted ? (
+                        <div className="flex items-center bg-green-50 p-2 rounded-md border border-green-200">
+                          <input 
+                            type="text" 
+                            value={studentRepo.repoUrl || ""} 
+                            readOnly 
+                            className="flex-1 bg-transparent text-xs text-gray-700 focus:outline-none overflow-hidden text-ellipsis"
+                          />
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => {
+                              navigator.clipboard.writeText(studentRepo.repoUrl || "");
+                              toast.success("Your solution URL copied to clipboard");
+                            }}
+                            className="ml-2"
+                          >
+                            <ClipboardCopy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Input
+                            type="text"
+                            placeholder="https://github.com/yourusername/your-solution-repo"
+                            value={solutionUrls[assignment._id] || ""}
+                            onChange={(e) => handleUpdateSolutionUrl(assignment._id, e.target.value)}
+                            className="w-full text-sm"
+                          />
+                          <Button 
+                            size="sm"
+                            onClick={() => handleSubmitAssignment(assignment._id)}
+                            className="bg-green-600 hover:bg-green-700 w-full"
+                          >
+                            Submit Solution & Mark as Complete
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex flex-col space-y-2">
+                      {/* Assignment Repository Button */}
                       <Button variant="outline" className="flex items-center" asChild>
-                        <a href={studentRepo?.repoUrl} target="_blank" rel="noopener noreferrer">
+                        <a href={assignment.repoUrl} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-4 w-4 mr-2" />
-                          Open Repository
+                          View Assignment Repository
                         </a>
                       </Button>
                       
-                      {!studentRepo?.submitted && (
-                        <Button 
-                          onClick={() => handleSubmitAssignment(assignment._id, studentRepo?.repoUrl)}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          Mark as Submitted
+                      {/* Solution Repository Button */}
+                      {studentRepo?.submitted && studentRepo.repoUrl && (
+                        <Button variant="outline" className="flex items-center" asChild>
+                          <a href={studentRepo.repoUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View Your Solution
+                          </a>
                         </Button>
                       )}
                     </div>

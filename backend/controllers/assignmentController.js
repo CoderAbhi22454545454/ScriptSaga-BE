@@ -2,19 +2,19 @@ import { Assignment } from '../models/Assignment.model.js';
 import { Class } from '../models/class.model.js';
 import { User } from '../models/user.model.js';
 import GitHubService from '../utils/githubService.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const createAssignment = async (req, res) => {
   try {
     console.log('Request body:', req.body);
     console.log('User from auth middleware:', req.user);
     
-    const { title, description, dueDate, points, templateRepo, repoName, classId } = req.body;
+    const { title, description, dueDate, points, repoUrl, classId } = req.body;
     const teacherId = req.user?.userId;
     
     console.log('Teacher ID:', teacherId);
-
-    // Get teacher's GitHub credentials
-    const teacher = await User.findById(teacherId);
 
     // Get all students in the class
     const classData = await Class.findById(classId).populate({
@@ -30,26 +30,15 @@ export const createAssignment = async (req, res) => {
       points,
       classId,
       teacherId,
-      templateRepo,
-      repoName,
+      repoUrl,
       studentRepos: []
     });
 
-    // Create repositories for each student
+    // Add entry for each student
     for (const student of classData.students) {
-      const studentRepoName = `${repoName}-${student.rollNo}`;
-      const repoUrl = await GitHubService.createRepoFromTemplate(
-        templateRepo,
-        studentRepoName,
-        process.env.GITHUB_ORG
-      );
-
-      // Add student as collaborator
-      await GitHubService.addCollaborator(studentRepoName, student.githubID);
-
       assignment.studentRepos.push({
         studentId: student._id,
-        repoUrl
+        submitted: false
       });
     }
 
@@ -245,7 +234,7 @@ export const getStudentAssignments = async (req, res) => {
 
 export const submitAssignment = async (req, res) => {
   try {
-    const { assignmentId, studentId } = req.body;
+    const { assignmentId, studentId, solutionUrl } = req.body;
     
     const assignment = await Assignment.findById(assignmentId);
     if (!assignment) {
@@ -270,6 +259,11 @@ export const submitAssignment = async (req, res) => {
     // Update the submission status
     assignment.studentRepos[studentRepoIndex].submitted = true;
     assignment.studentRepos[studentRepoIndex].submissionDate = new Date();
+    
+    // Add solution URL if provided
+    if (solutionUrl) {
+      assignment.studentRepos[studentRepoIndex].repoUrl = solutionUrl;
+    }
     
     await assignment.save();
     

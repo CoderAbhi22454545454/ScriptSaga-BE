@@ -16,18 +16,17 @@ const AssignmentDialog = ({ isOpen, setIsOpen, onSubmit }) => {
     title: "",
     description: "",
     dueDate: "",
-    repoName: "",
-    templateRepo: "", // Format: organization/repo-name
+    repoUrl: "",
     points: "10"
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate GitHub repository format
-    const repoRegex = /^[a-zA-Z0-9-]+\/[a-zA-Z0-9-_]+$/;
-    if (!repoRegex.test(formData.templateRepo)) {
-      toast.error('Template repository should be in format: organization/repo-name');
+    // Validate GitHub repository URL
+    const urlRegex = /^https?:\/\/github\.com\/[a-zA-Z0-9-]+\/[a-zA-Z0-9-_]+\/?$/;
+    if (!urlRegex.test(formData.repoUrl)) {
+      toast.error('Please enter a valid GitHub repository URL (https://github.com/username/repo)');
       return;
     }
 
@@ -36,8 +35,7 @@ const AssignmentDialog = ({ isOpen, setIsOpen, onSubmit }) => {
       title: "",
       description: "",
       dueDate: "",
-      repoName: "",
-      templateRepo: "",
+      repoUrl: "",
       points: "10"
     });
   };
@@ -98,39 +96,19 @@ const AssignmentDialog = ({ isOpen, setIsOpen, onSubmit }) => {
             />
           </div>
           <div>
-            <Label htmlFor="templateRepo">
-              Template Repository (format: organization/repo-name)
+            <Label htmlFor="repoUrl">
+              GitHub Repository URL
             </Label>
-            <div className="flex items-center">
-              <span className="bg-gray-100 px-3 py-2 border border-r-0 rounded-l-md text-gray-500">
-                https://github.com/
-              </span>
-              <Input
-                id="templateRepo"
-                name="templateRepo"
-                value={formData.templateRepo}
-                onChange={handleChange}
-                className="rounded-l-none"
-                placeholder="organization/repo-name"
-                required
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              This should be a template repository that will be used to create student repositories
-            </p>
-          </div>
-          <div>
-            <Label htmlFor="repoName">Repository Name Base</Label>
             <Input
-              id="repoName"
-              name="repoName"
-              value={formData.repoName}
+              id="repoUrl"
+              name="repoUrl"
+              value={formData.repoUrl}
               onChange={handleChange}
-              placeholder="assignment-1"
+              placeholder="https://github.com/username/repository"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Student repositories will be created as: {formData.repoName}-{"{student-roll-no}"}
+              Create a GitHub repository manually and paste its URL here. Students will clone this repository.
             </p>
           </div>
           <div className="flex justify-end space-x-2 pt-4">

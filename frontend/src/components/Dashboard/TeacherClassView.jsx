@@ -512,8 +512,8 @@ const TeacherClassView = () => {
                         </div>
                         <div className="mt-4 flex space-x-2">
                           <Button variant="outline" asChild>
-                            <a href={assignment.templateRepo} target="_blank" rel="noopener noreferrer">
-                              Template Repo
+                            <a href={assignment.repoUrl} target="_blank" rel="noopener noreferrer">
+                              GitHub Repository
                             </a>
                           </Button>
                           <Button variant="outline" onClick={() => handleViewSubmissions(assignment._id)}>
@@ -618,10 +618,17 @@ const TeacherClassView = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => window.open(submission.repoUrl, '_blank')}
+                                onClick={() => {
+                                  if (submission.repoUrl) {
+                                    window.open(submission.repoUrl, '_blank');
+                                  } else {
+                                    toast.error('No solution repository URL available');
+                                  }
+                                }}
+                                disabled={!submission.repoUrl}
                               >
                                 <ExternalLink className="h-4 w-4 mr-1" />
-                                View Repo
+                                View Solution
                               </Button>
                               {!submission.submitted && (
                                 <Button 

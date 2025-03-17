@@ -44,6 +44,7 @@ import DomainRecommendations from './Github/studentMetrics/DomainRecommendations
 import LearningResources from './Github/studentMetrics/LearningResources';
 import CareerRoadmap from './Github/studentMetrics/CareerRoadmap';
 import { getDomainSuggestions } from '@/utils/domainSuggestions';
+import { Input } from "@/components/ui/input";
 
 const GitHubMetrics = ({ stats }) => {
   // Use the summary data from stats
@@ -304,6 +305,7 @@ const StudentDashboard = () => {
   const [assignmentsLoading, setAssignmentsLoading] = useState(true);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const navigate = useNavigate();
+  const [solutionUrls, setSolutionUrls] = useState({});
 
   const findStudentRepo = (assignment) => {
     if (!assignment?.studentRepos || !user?._id) return null;
@@ -459,22 +461,50 @@ const StudentDashboard = () => {
     fetchAllData();
   }, [user?._id]);
 
-  const handleSubmitAssignment = async (assignmentId) => {
+  const handleUpdateSolutionUrl = (assignmentId, url) => {
+    setSolutionUrls(prev => ({
+      ...prev,
+      [assignmentId]: url
+    }));
+  };
+
+  const handleSubmitAssignment = async (assignmentId, solutionUrl) => {
     try {
+      // Get the solution URL from state
+      const urlToSubmit = solutionUrl || solutionUrls[assignmentId];
+      
+      // Validate URL
+      if (!urlToSubmit || !urlToSubmit.match(/^https?:\/\/github\.com\/[a-zA-Z0-9-]+\/[a-zA-Z0-9-_]+\/?$/)) {
+        toast.error("Please enter a valid GitHub repository URL");
+        return;
+      }
+      
       const response = await api.post('/assignment/submit', {
         assignmentId,
-        studentId: user._id
+        studentId: user._id,
+        solutionUrl: urlToSubmit
       });
       
       if (response.data.success) {
         toast.success('Assignment marked as submitted');
-        fetchAssignments();
+        fetchAllData(); // Refresh all data to get updated assignment status
       }
     } catch (error) {
       console.error('Error submitting assignment:', error);
       toast.error('Failed to submit assignment');
     }
   };
+
+  useEffect(() => {
+    const initialUrls = {};
+    assignments.forEach(assignment => {
+      const studentRepo = findStudentRepo(assignment);
+      if (studentRepo) {
+        initialUrls[assignment._id] = studentRepo.repoUrl || '';
+      }
+    });
+    setSolutionUrls(initialUrls);
+  }, [assignments]);
 
   if (loading) {
     return (
@@ -838,18 +868,6 @@ const StudentDashboard = () => {
                     );
                     
                     const dueDate = new Date(assignment.dueDate);
-                    const now = new Date();
-                    const totalTime = new Date(assignment.dueDate) - new Date(assignment.createdAt);
-                    const remainingTime = dueDate - now;
-                    const progressPercentage = Math.max(
-                      0, 
-                      Math.min(100, 100 - (remainingTime / totalTime) * 100)
-                    );
-
-                    // Format the template repo URL for display
-                    const templateRepoUrl = assignment.templateRepo ? 
-                      `https://github.com/${assignment.templateRepo}` : 
-                      null;
 
                     return (
                       <Card key={assignment._id} className="overflow-hidden">
@@ -858,7 +876,7 @@ const StudentDashboard = () => {
                             <CardTitle className="text-lg">{assignment.title}</CardTitle>
                             <div className="flex items-center gap-1 text-sm font-medium">
                               {status.icon}
-                              {status.label}
+                              <span className="ml-1">{status.label}</span>
                             </div>
                           </div>
                         </CardHeader>
@@ -879,42 +897,38 @@ const StudentDashboard = () => {
                             </div>
                           </div>
                           
-                          {/* Add Template Repository URL */}
+                          {/* Assignment Repository URL */}
                           <div className="mt-4 mb-4">
                             <h4 className="text-sm font-medium text-gray-700 mb-2">Assignment Repository:</h4>
-                            {templateRepoUrl ? (
-                              <div className="flex items-center bg-gray-50 p-2 rounded-md border">
-                                <input 
-                                  type="text" 
-                                  value={templateRepoUrl} 
-                                  readOnly 
-                                  className="flex-1 bg-transparent text-xs text-gray-700 focus:outline-none overflow-hidden text-ellipsis"
-                                />
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(templateRepoUrl);
-                                    toast.success("Template repository URL copied to clipboard");
-                                  }}
-                                  className="ml-2"
-                                >
-                                  <ClipboardCopy className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <p className="text-xs text-gray-500 italic">No template repository available</p>
-                            )}
+                            <div className="flex items-center bg-gray-50 p-2 rounded-md border">
+                              <input 
+                                type="text" 
+                                value={assignment.repoUrl || ""} 
+                                readOnly 
+                                className="flex-1 bg-transparent text-xs text-gray-700 focus:outline-none overflow-hidden text-ellipsis"
+                              />
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(assignment.repoUrl || "");
+                                  toast.success("Repository URL copied to clipboard");
+                                }}
+                                className="ml-2"
+                              >
+                                <ClipboardCopy className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                           
-                          {/* Student Repository URL */}
+                          {/* Your Solution Repository URL */}
                           <div className="mb-4">
-                            <h4 className="text-sm font-medium text-gray-700 mb-2">Your Repository:</h4>
-                            {studentRepo?.repoUrl ? (
-                              <div className="flex items-center bg-gray-50 p-2 rounded-md border">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Your Solution Repository URL:</h4>
+                            {studentRepo?.submitted ? (
+                              <div className="flex items-center bg-green-50 p-2 rounded-md border border-green-200">
                                 <input 
                                   type="text" 
-                                  value={studentRepo.repoUrl} 
+                                  value={studentRepo.repoUrl || ""} 
                                   readOnly 
                                   className="flex-1 bg-transparent text-xs text-gray-700 focus:outline-none overflow-hidden text-ellipsis"
                                 />
@@ -922,8 +936,8 @@ const StudentDashboard = () => {
                                   variant="ghost" 
                                   size="sm" 
                                   onClick={() => {
-                                    navigator.clipboard.writeText(studentRepo.repoUrl);
-                                    toast.success("Repository URL copied to clipboard");
+                                    navigator.clipboard.writeText(studentRepo.repoUrl || "");
+                                    toast.success("Your solution URL copied to clipboard");
                                   }}
                                   className="ml-2"
                                 >
@@ -931,38 +945,41 @@ const StudentDashboard = () => {
                                 </Button>
                               </div>
                             ) : (
-                              <p className="text-xs text-gray-500 italic">No repository URL available</p>
+                              <div className="space-y-2">
+                                <Input
+                                  type="text"
+                                  placeholder="https://github.com/yourusername/your-solution-repo"
+                                  value={solutionUrls[assignment._id] || ""}
+                                  onChange={(e) => handleUpdateSolutionUrl(assignment._id, e.target.value)}
+                                  className="w-full text-sm"
+                                />
+                                <Button 
+                                  size="sm"
+                                  onClick={() => handleSubmitAssignment(assignment._id)}
+                                  className="bg-green-600 hover:bg-green-700 w-full"
+                                >
+                                  Submit Solution & Mark as Complete
+                                </Button>
+                              </div>
                             )}
                           </div>
                           
                           <div className="flex flex-col space-y-2">
-                            {/* Template Repository Button */}
-                            {templateRepoUrl && (
-                              <Button variant="outline" className="flex items-center" asChild>
-                                <a href={templateRepoUrl} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="h-4 w-4 mr-2" />
-                                  View Template Repository
-                                </a>
-                              </Button>
-                            )}
+                            {/* Assignment Repository Button */}
+                            <Button variant="outline" className="flex items-center" asChild>
+                              <a href={assignment.repoUrl} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                View Assignment Repository
+                              </a>
+                            </Button>
                             
-                            {/* Student Repository Button */}
-                            {studentRepo?.repoUrl && (
+                            {/* Solution Repository Button */}
+                            {studentRepo?.submitted && studentRepo.repoUrl && (
                               <Button variant="outline" className="flex items-center" asChild>
                                 <a href={studentRepo.repoUrl} target="_blank" rel="noopener noreferrer">
                                   <ExternalLink className="h-4 w-4 mr-2" />
-                                  Open Your Repository
+                                  View Your Solution
                                 </a>
-                              </Button>
-                            )}
-                            
-                            {!studentRepo?.submitted && (
-                              <Button 
-                                size="sm"
-                                onClick={() => handleSubmitAssignment(assignment._id)}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                Mark as Submitted
                               </Button>
                             )}
                           </div>
@@ -974,16 +991,6 @@ const StudentDashboard = () => {
               ) : (
                 <div className="text-center py-6">
                   <p className="text-gray-500">No assignments found.</p>
-                  {process.env.NODE_ENV === 'development' && (
-                    <>
-                      <p className="text-xs text-gray-400 mt-2">
-                        Debug: API endpoint used: /assignment/student/{user._id}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Note: Assignments may need to be explicitly assigned to students by teachers.
-                      </p>
-                    </>
-                  )}
                 </div>
               )}
               <div className="flex justify-center mt-4">
