@@ -229,7 +229,7 @@ const processLanguageUsage = (repos) => {
   
   // Make sure we're returning a non-empty object
   console.log("Processed languages:", languages);
-  return Object.keys(languages).length > 0 ? languages : null;
+  return languages; // Always return the languages object, even if empty
 };
 
 const getMostActiveRepos = (repos) => {
@@ -1061,10 +1061,11 @@ const StudentDashboard = () => {
 export default StudentDashboard;
 
 const LanguageUsageChart = ({ data }) => {
-  const chartData = Object.entries(data)
+  // Add a check to ensure data is defined before using Object.entries()
+  const chartData = data ? Object.entries(data)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 10);
+    .slice(0, 10) : [];
 
   const colors = [
     "#FF6B6B",

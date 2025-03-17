@@ -34,21 +34,26 @@ export const createClass = async (req, res) => {
 
 export const getAllClasses = async (req, res) => {
     try {
-        const classes = await Class.find();
+        // Get all classes
+        const classes = await Class.find().lean();
         
-        const classesWithCount = await Promise.all(
-            classes.map(async (cls) => {
-                const studentCount = await User.countDocuments({ 
-                    classId: cls._id,
-                    role: 'student'
-                });
-                
-                return {
-                    ...cls.toObject(),
-                    totalStudents: studentCount
-                };
-            })
-        );
+        // Get student counts for all classes in a single query
+        const studentCounts = await User.aggregate([
+            { $match: { role: 'student' } },
+            { $group: { _id: '$classId', count: { $sum: 1 } } }
+        ]);
+        
+        // Create a map of classId to student count
+        const countMap = studentCounts.reduce((map, item) => {
+            map[item._id.toString()] = item.count;
+            return map;
+        }, {});
+        
+        // Combine the data
+        const classesWithCount = classes.map(cls => ({
+            ...cls,
+            totalStudents: countMap[cls._id.toString()] || 0
+        }));
         
         res.json({
             success: true,
@@ -120,21 +125,15 @@ export const getStudentByClass = async (req, res) => {
             });
         }
 
-        // Check if class exists
-        const classExists = await Class.findById(classId);
-        if (!classExists) {
-            return res.status(404).json({
-                message: "Class not found",
-                success: false
-            });
-        }
-
+        // Directly fetch students without checking if class exists first
+        // This saves one database query
         const students = await User.find({ 
             classId, 
             role: 'student' 
         })
         .select('-password')
-        .sort({ rollNo: 1 });
+        .sort({ rollNo: 1 })
+        .lean(); // Use lean() for better performance
         
         return res.status(200).json({
             students,
@@ -231,19 +230,8 @@ export const getTeacherClasses = async (req, res) => {
   try {
     const teacherId = req.params.teacherId;
     
-    const teacher = await User.findById(teacherId)
-      .populate({
-        path: 'classId',
-        populate: [
-          {
-            path: 'students',
-            select: '-password'
-          },
-          {
-            path: 'assignments'
-          }
-        ]
-      });
+    // First, get the teacher with just the classId references
+    const teacher = await User.findById(teacherId).lean();
     
     if (!teacher) {
       return res.status(404).json({
@@ -251,25 +239,81 @@ export const getTeacherClasses = async (req, res) => {
         message: 'Teacher not found'
       });
     }
-
-    // Calculate additional stats for each class
-    const classesWithStats = teacher.classId.map(cls => {
-      const activeAssignments = cls.assignments?.filter(assignment => 
-        new Date(assignment.dueDate) > new Date()
-      ).length || 0;
-
-      const totalSubmissions = cls.assignments?.reduce((acc, assignment) => 
-        acc + (assignment.submissions?.length || 0), 0) || 0;
+    
+    if (!teacher.classId || teacher.classId.length === 0) {
+      return res.json({
+        success: true,
+        classes: []
+      });
+    }
+    
+    // Get all classes for this teacher in one query
+    const classes = await Class.find({
+      _id: { $in: teacher.classId }
+    }).lean();
+    
+    // Get counts of students per class in one query
+    const studentCounts = await User.aggregate([
+      { 
+        $match: { 
+          classId: { $in: teacher.classId },
+          role: 'student'
+        }
+      },
+      { $group: { _id: '$classId', count: { $sum: 1 } } }
+    ]);
+    
+    // Create a map of classId to student count
+    const studentCountMap = studentCounts.reduce((map, item) => {
+      map[item._id.toString()] = item.count;
+      return map;
+    }, {});
+    
+    // Get assignment stats in one query
+    const assignmentStats = await Class.aggregate([
+      { $match: { _id: { $in: teacher.classId } } },
+      { $lookup: {
+          from: 'assignments',
+          localField: 'assignments',
+          foreignField: '_id',
+          as: 'assignmentDetails'
+        }
+      },
+      { $project: {
+          _id: 1,
+          assignmentCount: { $size: '$assignmentDetails' },
+          activeAssignments: {
+            $size: {
+              $filter: {
+                input: '$assignmentDetails',
+                as: 'assignment',
+                cond: { $gt: ['$$assignment.dueDate', new Date()] }
+              }
+            }
+          }
+        }
+      }
+    ]);
+    
+    // Create a map of classId to assignment stats
+    const assignmentStatsMap = assignmentStats.reduce((map, item) => {
+      map[item._id.toString()] = {
+        assignmentCount: item.assignmentCount,
+        activeAssignments: item.activeAssignments
+      };
+      return map;
+    }, {});
+    
+    // Combine all the data
+    const classesWithStats = classes.map(cls => {
+      const classId = cls._id.toString();
+      const stats = assignmentStatsMap[classId] || { assignmentCount: 0, activeAssignments: 0 };
       
-      const totalPossibleSubmissions = (cls.assignments?.length || 0) * (cls.students?.length || 0);
-      const completionRate = totalPossibleSubmissions > 0 
-        ? Math.round((totalSubmissions / totalPossibleSubmissions) * 100) 
-        : 0;
-
       return {
-        ...cls.toObject(),
-        activeAssignments,
-        completionRate
+        ...cls,
+        totalStudents: studentCountMap[classId] || 0,
+        activeAssignments: stats.activeAssignments,
+        totalAssignments: stats.assignmentCount
       };
     });
 
