@@ -6,7 +6,7 @@ const classSchema = new mongoose.Schema({
         required: true
     },
     yearOfStudy: {
-        type: Number,
+        type: String,
         required: true
     },
     branch: {

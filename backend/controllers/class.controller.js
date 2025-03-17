@@ -204,7 +204,7 @@ export const downloadClassData = async (req, res) => {
     worksheet.getRow(1).fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FF0000FF' }
+      fgColor: { argb: 'FFFFFFFF' }
     };
 
     res.setHeader(
@@ -284,5 +284,234 @@ export const getTeacherClasses = async (req, res) => {
       message: 'Error fetching teacher classes',
       error: error.message
     });
+  }
+};
+
+export const downloadClassDataWithProgress = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { students: studentsWithProgress } = req.body;
+    
+    if (!studentsWithProgress || !Array.isArray(studentsWithProgress)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid student data provided'
+      });
+    }
+
+    // Get class data
+    const classData = await Class.findById(classId).lean();
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Class not found'
+      });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Class Progress Data');
+
+    // Define columns with additional progress data
+    worksheet.columns = [
+      { header: 'Roll No', key: 'rollNo', width: 10 },
+      { header: 'Name', key: 'name', width: 20 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'GitHub ID', key: 'githubID', width: 15 },
+      { header: 'Total Commits', key: 'totalCommits', width: 15 },
+      { header: 'Active Repos', key: 'activeRepos', width: 15 },
+      { header: 'LeetCode ID', key: 'leetCodeID', width: 15 },
+      { header: 'Problems Solved', key: 'problemsSolved', width: 15 },
+      // New progress columns
+      { header: 'Current Streak', key: 'currentStreak', width: 15 },
+      { header: 'Longest Streak', key: 'longestStreak', width: 15 },
+      { header: 'Active Days (30d)', key: 'activeDays', width: 15 },
+      { header: 'Weekly Average', key: 'weeklyAverage', width: 15 },
+      { header: 'Coding Progress', key: 'codingProgress', width: 20 },
+      { header: 'Career Suggestion', key: 'careerSuggestion', width: 30 }
+    ];
+
+    // Add student data rows
+    studentsWithProgress.forEach(student => {
+      try {
+        // Get data from either progressData or fallback to githubData/leetcodeData
+        const progressData = student.progress?.progressData?.codingActivity || {};
+        const repoData = student.progress?.progressData?.repositories || {};
+        const leetcodeData = student.progress?.progressData?.leetcode || {};
+        const githubData = student.progress?.githubData || student.githubData || {};
+        const studentLeetcode = student.progress?.leetcodeData || student.leetcodeData || {};
+        
+        worksheet.addRow({
+          rollNo: student.rollNo || 'N/A',
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'N/A',
+          email: student.email || 'N/A',
+          githubID: student.githubID || 'N/A',
+          totalCommits: progressData.totalCommits || githubData.totalCommits || 0,
+          activeRepos: repoData.active || githubData.activeRepos || githubData.repoCount || 0,
+          leetCodeID: student.leetCodeID || 'N/A',
+          problemsSolved: leetcodeData.totalSolved || 
+                          studentLeetcode?.completeProfile?.solvedProblem || 
+                          studentLeetcode?.totalSolved || 0,
+          // New progress data
+          currentStreak: progressData.currentStreak || 0,
+          longestStreak: progressData.longestStreak || 0,
+          activeDays: progressData.activeDaysLast30 || 0,
+          weeklyAverage: progressData.weeklyAverage || 0,
+          codingProgress: student.progress?.codingProgress || 'Not Available',
+          careerSuggestion: student.progress?.careerSuggestion || 'Not Available'
+        });
+      } catch (error) {
+        console.error(`Error adding student ${student._id} to Excel:`, error);
+        // Add row with minimal data to prevent Excel generation failure
+        worksheet.addRow({
+          rollNo: student.rollNo || 'N/A',
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'N/A',
+          email: student.email || 'N/A',
+          githubID: student.githubID || 'N/A',
+          totalCommits: 0,
+          activeRepos: 0,
+          leetCodeID: student.leetCodeID || 'N/A',
+          problemsSolved: 0,
+          currentStreak: 0,
+          longestStreak: 0,
+          activeDays: 0,
+          weeklyAverage: 0,
+          codingProgress: 'Error',
+          careerSuggestion: 'Not Available'
+        });
+      }
+    });
+
+    // Style header
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFFFFF' }
+    };
+    
+    // Add conditional formatting for coding progress
+    worksheet.getColumn('codingProgress').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
+      if (rowNumber > 1) { // Skip header
+        switch(cell.value) {
+          case 'Very Good':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00B050' } }; // Green
+            break;
+          case 'Good':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } }; // Light green
+            break;
+          case 'Average':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } }; // Yellow
+            break;
+          case 'Needs Improvement':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF9900' } }; // Orange
+            break;
+          case 'Not Started':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF0000' } }; // Red
+            break;
+          case 'Error':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } }; // Light gray
+            break;
+        }
+      }
+    });
+
+    // Add summary section at the bottom
+    const lastRow = worksheet.lastRow.number;
+    worksheet.addRow([]); // Empty row for spacing
+    
+    // Add class summary
+    const summaryRow = worksheet.addRow(['Class Summary']);
+    summaryRow.font = { bold: true, size: 14 };
+    worksheet.mergeCells(`A${lastRow + 2}:N${lastRow + 2}`);
+    
+    // Calculate class averages
+    const activeStudents = studentsWithProgress.filter(s => s.githubID);
+    const totalStudents = studentsWithProgress.length;
+    const studentsWithGitHub = activeStudents.length;
+    
+    // Calculate average commits using either progressData or githubData
+    const avgCommits = activeStudents.reduce((sum, s) => {
+      try {
+        const commits = s.progress?.progressData?.codingActivity?.totalCommits || 
+                       s.progress?.githubData?.totalCommits || 
+                       s.githubData?.totalCommits || 0;
+        return sum + commits;
+      } catch (error) {
+        return sum;
+      }
+    }, 0) / (studentsWithGitHub || 1);
+    
+    // Calculate average active days
+    const avgActiveDays = activeStudents.reduce((sum, s) => {
+      try {
+        const activeDays = s.progress?.progressData?.codingActivity?.activeDaysLast30 || 0;
+        return sum + activeDays;
+      } catch (error) {
+        return sum;
+      }
+    }, 0) / (studentsWithGitHub || 1);
+    
+    // Add statistics rows
+    worksheet.addRow(['Total Students', totalStudents]);
+    worksheet.addRow(['Students with GitHub', studentsWithGitHub]);
+    worksheet.addRow(['Average Commits', avgCommits.toFixed(2)]);
+    worksheet.addRow(['Average Active Days', avgActiveDays.toFixed(2)]);
+    
+    // Add progress distribution
+    const progressCounts = {
+      'Very Good': 0,
+      'Good': 0,
+      'Average': 0,
+      'Needs Improvement': 0,
+      'Not Started': 0,
+      'Not Available': 0,
+      'Error': 0
+    };
+    
+    studentsWithProgress.forEach(s => {
+      try {
+        const progress = s.progress?.codingProgress || 'Not Available';
+        progressCounts[progress] = (progressCounts[progress] || 0) + 1;
+      } catch (error) {
+        progressCounts['Error'] = (progressCounts['Error'] || 0) + 1;
+      }
+    });
+    
+    worksheet.addRow([]); // Empty row
+    const distributionRow = worksheet.addRow(['Progress Distribution']);
+    distributionRow.font = { bold: true };
+    
+    Object.entries(progressCounts).forEach(([level, count]) => {
+      if (count > 0) { // Only show categories that have students
+        worksheet.addRow([level, count, `${((count / totalStudents) * 100).toFixed(2)}%`]);
+      }
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=Class_${classData.yearOfStudy}_${classData.division}_Progress.xlsx`
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Error generating excel with progress data:', error);
+    
+    // Try to send a basic error response
+    try {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate excel file with progress data',
+        error: error.message
+      });
+    } catch (responseError) {
+      // If we can't send a JSON response (e.g., headers already sent)
+      console.error('Error sending error response:', responseError);
+      res.end();
+    }
   }
 };

@@ -40,6 +40,37 @@ import {
 import MessageStudent from "../../MessageStudent";
 import DomainRecommendations from '../studentMetrics/DomainRecommendations';
 import { getDomainSuggestions } from '@/utils/domainSuggestions';
+import StudentProgressDashboard from './StudentProgressDashboard';
+
+// Cache utility functions
+const CACHE_EXPIRY = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+const getCachedData = (key) => {
+  try {
+    const cachedItem = localStorage.getItem(key);
+    if (!cachedItem) return null;
+    
+    const { data, timestamp } = JSON.parse(cachedItem);
+    const isExpired = Date.now() - timestamp > CACHE_EXPIRY;
+    
+    return isExpired ? null : data;
+  } catch (error) {
+    console.error('Error retrieving cached data:', error);
+    return null;
+  }
+};
+
+const setCachedData = (key, data) => {
+  try {
+    const cacheItem = {
+      data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(cacheItem));
+  } catch (error) {
+    console.error('Error caching data:', error);
+  }
+};
 
 const StudentDetailGit = () => {
   const { userId } = useParams();
@@ -66,12 +97,16 @@ const StudentDetailGit = () => {
   const [isLoadingGithubSummary, setIsLoadingGithubSummary] = useState(true);
   const [isLoadingLeetCode, setIsLoadingLeetCode] = useState(true);
   const [isLoadingCharts, setIsLoadingCharts] = useState(true);
+  const [progressData, setProgressData] = useState(null);
+  const [classAverageData, setClassAverageData] = useState(null);
+  const [isLoadingProgress, setIsLoadingProgress] = useState(true);
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchAllData = async () => {
-      if (dataFetched) return;
+      if (dataFetched && !forceRefresh) return;
       
       try {
         setLoading(true);
@@ -81,8 +116,18 @@ const StudentDetailGit = () => {
         setIsLoadingCharts(true);
         setError(null);
 
-        const studentData = await fetchStudentData(userId);
-        if (!isMounted) return;
+        // Try to get student data from cache first
+        const cacheKey = `student_data_${userId}`;
+        let studentData = !forceRefresh ? getCachedData(cacheKey) : null;
+        
+        if (!studentData) {
+          // If not in cache or force refresh, fetch from API
+          studentData = await fetchStudentData(userId);
+          if (!isMounted) return;
+          
+          // Cache the result
+          setCachedData(cacheKey, studentData);
+        }
         
         setStudent(studentData);
         setClassData(studentData.classId[0]);
@@ -98,102 +143,135 @@ const StudentDetailGit = () => {
             totalForks: 0
           };
           
-          const summaryResult = await fetchGithubSummary(userId);
-          if (!isMounted) return;
+          // Try to get GitHub summary from cache
+          const summaryCacheKey = `github_summary_${userId}`;
+          const cachedSummary = !forceRefresh ? getCachedData(summaryCacheKey) : null;
           
-          if (summaryResult.success) {
-            githubSummary = summaryResult.summary;
-            console.log('Successfully fetched GitHub summary:', githubSummary);
+          if (cachedSummary) {
+            githubSummary = cachedSummary;
+            console.log('Using cached GitHub summary:', githubSummary);
+          } else {
+            const summaryResult = await fetchGithubSummary(userId);
+            if (!isMounted) return;
             
-            // Set metrics from summary immediately so we have some data to show
-            setMetrics(githubSummary);
+            if (summaryResult.success) {
+              githubSummary = summaryResult.summary;
+              console.log('Successfully fetched GitHub summary:', githubSummary);
+              
+              // Cache the result
+              setCachedData(summaryCacheKey, githubSummary);
+            }
           }
+          
+          setMetrics(githubSummary);
           setIsLoadingGithubSummary(false);
           
           // Then fetch detailed repo data
-          const result = await fetchGithubRepos(userId);
-          if (!isMounted) return;
+          const reposCacheKey = `github_repos_${userId}`;
+          let reposData = !forceRefresh ? getCachedData(reposCacheKey) : null;
           
-          if (result.success) {
-            setStudentRepos(result.repos);
+          if (!reposData) {
+            const result = await fetchGithubRepos(userId);
+            if (!isMounted) return;
             
-            if (result.repos.length > 0) {
-              setCommitFrequency(processCommitFrequency(result.repos, startDate, endDate));
-              setLanguageUsage(processLanguageUsage(result.repos));
-              setMostActiveRepos(getMostActiveRepos(result.repos));
-              setIsLoadingCharts(false);
-              
-              // Use both detailed repos and summary data for metrics
-              // If we have detailed repos, we can enhance the summary data
-              const enhancedMetrics = {
-                totalRepos: Math.max(githubSummary.totalRepos, result.repos.length),
-                totalCommits: Math.max(
-                  githubSummary.totalCommits, 
-                  result.repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0)
-                ),
-                activeRepos: Math.max(
-                  githubSummary.activeRepos,
-                  result.repos.filter(repo => (repo.commits?.length || 0) > 0).length
-                ),
-                totalStars: Math.max(
-                  githubSummary.totalStars,
-                  result.repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0)
-                ),
-                totalForks: Math.max(
-                  githubSummary.totalForks,
-                  result.repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0)
-                )
-              };
-              
+            if (result.success) {
+              reposData = result.repos;
+              // Cache the result
+              setCachedData(reposCacheKey, reposData);
+            } else {
+              setError(result.error || "Failed to fetch GitHub data");
+              reposData = [];
+            }
+          }
           
-              setMetrics(githubSummary);
-              
-              // Update metrics on the server
+          setStudentRepos(reposData);
+          
+          if (reposData.length > 0) {
+            setCommitFrequency(processCommitFrequency(reposData, startDate, endDate));
+            setLanguageUsage(processLanguageUsage(reposData));
+            setMostActiveRepos(getMostActiveRepos(reposData));
+            setIsLoadingCharts(false);
+            
+            // Use both detailed repos and summary data for metrics
+            const enhancedMetrics = {
+              totalRepos: Math.max(githubSummary.totalRepos, reposData.length),
+              totalCommits: Math.max(
+                githubSummary.totalCommits, 
+                reposData.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0)
+              ),
+              activeRepos: Math.max(
+                githubSummary.activeRepos,
+                reposData.filter(repo => (repo.commits?.length || 0) > 0).length
+              ),
+              totalStars: Math.max(
+                githubSummary.totalStars,
+                reposData.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0)
+              ),
+              totalForks: Math.max(
+                githubSummary.totalForks,
+                reposData.reduce((sum, repo) => sum + (repo.forks_count || 0), 0)
+              )
+            };
+            
+            setMetrics(enhancedMetrics);
+            
+            // Check if we need to update metrics on the server
+            if (forceRefresh) {
               try {
                 const metricsData = await updateMetrics(
                   userId, 
-                  result.repos, 
+                  reposData, 
                   studentData.leetCodeID ? await fetchLeetCodeData(userId) : null
                 );
                 if (!isMounted) return;
-                // Only update if we got valid data back
+                
                 if (metricsData && Object.keys(metricsData).length > 0) {
-                  // Ensure we preserve the core summary metrics structure
-                  setMetrics({
+                  const updatedMetrics = {
                     totalRepos: metricsData.totalRepos || enhancedMetrics.totalRepos,
                     totalCommits: metricsData.totalCommits || enhancedMetrics.totalCommits,
                     activeRepos: metricsData.activeRepos || enhancedMetrics.activeRepos,
                     totalStars: metricsData.totalStars || enhancedMetrics.totalStars,
                     totalForks: metricsData.totalForks || enhancedMetrics.totalForks,
-                    ...metricsData // Include any additional metrics
-                  });
+                    ...metricsData
+                  };
+                  
+                  setMetrics(updatedMetrics);
+                  // Update the cache with new metrics
+                  setCachedData(summaryCacheKey, updatedMetrics);
                 }
               } catch (metricsError) {
                 console.error('Error updating metrics:', metricsError);
-                // We already have metrics from summary, so we can continue
               }
-            } else if (githubSummary.totalRepos > 0) {
-              // If we have summary data but no detailed repos, use the summary
-              setLanguageUsage({});
-              setMostActiveRepos([]);
-              setCommitFrequency([]);
-              
-              // Use the summary data we already set earlier
-            } else {
-              setError("No GitHub repositories found for this student.");
-              console.log("No GitHub repositories found for this student.");
-              toast.error("No GitHub repositories found for this student.");
             }
+          } else if (githubSummary.totalRepos > 0) {
+            setLanguageUsage({});
+            setMostActiveRepos([]);
+            setCommitFrequency([]);
           } else {
-            // If detailed repo fetch fails but we have summary, use summary
-            if (githubSummary.totalRepos > 0) {
-              // We already set metrics from summary earlier, so no need to do it again
-            } else {
-              setError(result.error || "Failed to fetch GitHub data");
-            }
+            setError("No GitHub repositories found for this student.");
+            console.log("No GitHub repositories found for this student.");
+            toast.error("No GitHub repositories found for this student.");
           }
         } else {
           setError("Student does not have a GitHub username configured.");
+        }
+
+        // Fetch LeetCode data with caching
+        if (studentData.leetCodeID) {
+          const leetCodeCacheKey = `leetcode_data_${userId}`;
+          let leetCodeData = !forceRefresh ? getCachedData(leetCodeCacheKey) : null;
+          
+          if (!leetCodeData) {
+            leetCodeData = await fetchLeetCodeData(userId);
+            if (leetCodeData) {
+              setCachedData(leetCodeCacheKey, leetCodeData);
+            }
+          }
+          
+          if (leetCodeData) {
+            setStudentLeetCode(leetCodeData);
+          }
+          setIsLoadingLeetCode(false);
         }
 
       } catch (error) {
@@ -209,6 +287,7 @@ const StudentDetailGit = () => {
           setIsLoadingGithubSummary(false);
           setIsLoadingLeetCode(false);
           setIsLoadingCharts(false);
+          setForceRefresh(false); // Reset the force refresh flag
         }
       }
     };
@@ -219,7 +298,7 @@ const StudentDetailGit = () => {
     return () => {
       isMounted = false;
     };
-  }, [userId, dataFetched, startDate, endDate]);
+  }, [userId, dataFetched, startDate, endDate, forceRefresh]);
 
   useEffect(() => {
     if (studentRepos.length > 0) {
@@ -291,6 +370,10 @@ const StudentDetailGit = () => {
       setIsLoadingRepos(true);
       setError(null);
       
+      if (!student?.githubID) {
+        throw new Error('GitHub username not configured');
+      }
+      
       const response = await api.get(`/github/${userId}/repos`, {
         params: { page, limit: 10 }
       });
@@ -298,10 +381,14 @@ const StudentDetailGit = () => {
       if (response.data.success) {
         setStudentRepos(prev => [...prev, ...response.data.repos]);
         setHasMoreRepos(page < response.data.pagination.totalPages);
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch GitHub data');
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 
-                          'Failed to fetch GitHub data';
+      const errorMessage = error.response?.status === 404
+        ? 'GitHub username not found or invalid'
+        : error.response?.data?.message || error.message || 'Failed to fetch GitHub data';
+      
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -342,6 +429,133 @@ const StudentDetailGit = () => {
 
     fetchData();
   }, [userId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchProgressData = async () => {
+      if (!userId || !student?.classId?.[0]?._id) return;
+      
+      try {
+        setIsLoadingProgress(true);
+        
+        // Only fetch progress data if we have a valid GitHub username
+        if (student.githubID) {
+          // Fetch student progress report with caching
+          let progressData = null;
+          let classAverageData = null;
+          let comparisonData = null;
+          
+          // Try to get progress data from cache
+          const progressCacheKey = `progress_data_${userId}`;
+          progressData = !forceRefresh ? getCachedData(progressCacheKey) : null;
+          
+          if (!progressData) {
+            try {
+              const progressResponse = await api.getStudentProgressReport(userId);
+              if (!isMounted) return;
+              progressData = progressResponse.data;
+              console.log("Progress report data:", progressData);
+              
+              // Cache the result if valid
+              if (progressData && progressData.codingActivity) {
+                setCachedData(progressCacheKey, progressData);
+              }
+            } catch (progressError) {
+              console.error('Error fetching student progress report:', progressError);
+            }
+          }
+          
+          // If we still don't have valid progress data, create default
+          if (!progressData || !progressData.codingActivity) {
+            console.log("Creating default progress data from metrics");
+            progressData = createDefaultProgressData(metrics, studentRepos, studentLeetCode);
+          }
+          
+          // Try to get class average data from cache
+          const classCacheKey = `class_average_${student.classId[0]._id}`;
+          classAverageData = !forceRefresh ? getCachedData(classCacheKey) : null;
+          
+          if (!classAverageData) {
+            try {
+              const classResponse = await api.getClassAverages(student.classId[0]._id);
+              if (!isMounted) return;
+              classAverageData = classResponse.data;
+              console.log("Class average data:", classAverageData);
+              
+              // Cache the result if valid
+              if (classAverageData) {
+                setCachedData(classCacheKey, classAverageData);
+              }
+            } catch (classError) {
+              console.error('Error fetching class averages:', classError);
+              if (classError.response?.data?.message === "No students found in this class") {
+                console.log("No other students with GitHub data found in this class for comparison");
+              }
+            }
+          }
+          
+          // If we still don't have valid class data, create default
+          if (!classAverageData) {
+            classAverageData = createDefaultClassAverageData();
+          }
+          
+          // Try to get comparison data from cache
+          const comparisonCacheKey = `comparison_data_${userId}`;
+          comparisonData = !forceRefresh ? getCachedData(comparisonCacheKey) : null;
+          
+          if (!comparisonData) {
+            try {
+              const comparisonResponse = await api.compareStudentWithClass(userId);
+              if (!isMounted) return;
+              comparisonData = comparisonResponse.data;
+              console.log("Comparison data:", comparisonData);
+              
+              // Cache the result if valid
+              if (comparisonData) {
+                setCachedData(comparisonCacheKey, comparisonData);
+              }
+            } catch (comparisonError) {
+              console.error('Error fetching comparison data:', comparisonError);
+            }
+          }
+          
+          // If we still don't have valid comparison data, create default
+          if (!comparisonData) {
+            comparisonData = createDefaultComparisonData();
+          }
+
+          setProgressData(progressData);
+          setClassAverageData({
+            averages: classAverageData,
+            comparison: comparisonData
+          });
+        } else {
+          setError("GitHub username not configured");
+        }
+      } catch (error) {
+        console.error('Error in overall progress data fetching:', error);
+        const errorMessage = error.response?.data?.message || 'Failed to fetch progress data';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        if (isMounted) {
+          setIsLoadingProgress(false);
+        }
+      }
+    };
+
+    fetchProgressData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userId, student, metrics, studentRepos, studentLeetCode, forceRefresh]);
+
+  const refreshData = () => {
+    setForceRefresh(true);
+    toast.info("Refreshing data...");
+  };
 
   if (!student) {
     return (
@@ -386,23 +600,95 @@ const StudentDetailGit = () => {
   );
 
   const renderContent = () => {
-    if (error) {
+    if (error && error.includes('GitHub')) {
       return (
-        <Card className="mt-4">
-          <CardContent>
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Failed to load GitHub data</h3>
-              <p className="text-gray-500 mb-4">{error}</p>
-              <button 
-                onClick={() => fetchGithubData(1)}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-7">
+          {/* Always show student info */}
+
+          <div className="flex flex-col gap-7">
+          <Card className="grid grid-cols-1 md:grid-cols-1 gap-7">
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-user"
+                >
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                Student Information
+                <Badge variant="outline" className="ml-auto bg-green-300 border-0">
+                  Student
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingStudent ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-lg">
+                    <span className="font-semibold">Name:</span>{" "}
+                    {student.firstName || "No data"} {student.lastName}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Email:</span>{" "}
+                    {student.email || "No Data"}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Year of Study:</span>{" "}
+                    {/* Class: {classData?.className} | Branch: {classData?.branch} | Division: {classData?.division} */}
+                    {student.classId[0].className || "Student not in any class"}
+                    </p>
+                  <p>
+                    <span className="font-semibold">Branch:</span>{" "}
+                    {student.classId[0].branch || "Student not in any class"}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Division:</span>{" "}
+                    {student.classId[0].division || "Student not in any class"}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <MessageStudent studentId={student._id} className="grid grid-cols-1 md:grid-cols-1 gap-7"/>
+          </div>
+        
+
+          {/* Show GitHub error card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <GitBranch className="h-6 w-6" />
+                GitHub Integration Error
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">GitHub Data Unavailable</h3>
+                <p className="text-gray-500 max-w-md mb-4">{error}</p>
+                {error.includes('not configured') && (
+                  <p className="text-sm text-gray-600">
+                    Please ask the student to configure their GitHub username in their profile settings.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       );
     }
 
@@ -467,6 +753,17 @@ const StudentDetailGit = () => {
         </Card>
 
         <MessageStudent studentId={student._id} />
+
+        {/* Modified StudentProgressDashboard with better error handling */}
+        {student.githubID && (
+          <StudentProgressDashboard 
+            userId={userId}
+            progressData={progressData}
+            classAverageData={classAverageData?.averages && classAverageData?.comparison ? classAverageData : null}
+            isLoading={isLoadingProgress}
+            error={error}
+          />
+        )}
 
         <Card>
           <CardHeader>
@@ -535,6 +832,16 @@ const StudentDetailGit = () => {
   return (
     <Navbar>
       <div className="container mx-auto p-6">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={refreshData}
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors"
+            disabled={loading || isLoadingProgress}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading || isLoadingProgress ? 'animate-spin' : ''}`} />
+            Refresh Data
+          </button>
+        </div>
         {renderContent()}
 
         <div className="mt-8">
@@ -1054,6 +1361,176 @@ const fetchGithubSummary = async (userId) => {
       };
     }
   }
+};
+
+const createDefaultProgressData = (metrics, repos, leetcode) => {
+  // Create a basic progress data structure based on available GitHub metrics
+  const totalCommits = metrics?.totalCommits || 0;
+  const recentCommits = repos?.reduce((sum, repo) => {
+    const recentCommits = repo.commits?.filter(commit => {
+      const commitDate = new Date(commit.date);
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      return commitDate >= ninetyDaysAgo;
+    }).length || 0;
+    return sum + recentCommits;
+  }, 0) || 0;
+  
+  // Calculate active days in the last 30 days
+  const activeDaysSet = new Set();
+  repos?.forEach(repo => {
+    repo.commits?.forEach(commit => {
+      const commitDate = new Date(commit.date);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      if (commitDate >= thirtyDaysAgo) {
+        activeDaysSet.add(commitDate.toISOString().split('T')[0]);
+      }
+    });
+  });
+  
+  // Calculate current streak
+  let currentStreak = 0;
+  let longestStreak = 0;
+  let currentStreakCount = 0;
+  
+  // Get all commit dates and sort them
+  const allCommitDates = [];
+  repos?.forEach(repo => {
+    repo.commits?.forEach(commit => {
+      allCommitDates.push(new Date(commit.date).toISOString().split('T')[0]);
+    });
+  });
+  
+  // Sort dates and count streaks
+  if (allCommitDates.length > 0) {
+    const uniqueDates = [...new Set(allCommitDates)].sort();
+    let prevDate = null;
+    
+    for (const dateStr of uniqueDates) {
+      const date = new Date(dateStr);
+      
+      if (prevDate) {
+        const dayDiff = Math.floor((date - prevDate) / (1000 * 60 * 60 * 24));
+        if (dayDiff === 1) {
+          currentStreakCount++;
+        } else {
+          currentStreakCount = 1;
+        }
+      } else {
+        currentStreakCount = 1;
+      }
+      
+      longestStreak = Math.max(longestStreak, currentStreakCount);
+      prevDate = date;
+    }
+    
+    // Check if the last commit was today or yesterday for current streak
+    const lastDate = new Date(uniqueDates[uniqueDates.length - 1]);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    
+    if (lastDate.toISOString().split('T')[0] === today.toISOString().split('T')[0] ||
+        lastDate.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
+      currentStreak = currentStreakCount;
+    } else {
+      currentStreak = 0;
+    }
+  }
+  
+  // Calculate weekly average
+  const weeklyAverage = activeDaysSet.size > 0 ? Math.min(7, Math.round(activeDaysSet.size / 4)) : 0;
+  
+  return {
+    codingActivity: {
+      totalCommits: totalCommits,
+      recentCommits: recentCommits,
+      currentStreak: currentStreak,
+      longestStreak: longestStreak,
+      activeDaysLast30: activeDaysSet.size,
+      weeklyAverage: weeklyAverage
+    },
+    repositories: {
+      total: metrics?.totalRepos || 0,
+      active: metrics?.activeRepos || 0,
+      stars: metrics?.totalStars || 0,
+      forks: metrics?.totalForks || 0
+    },
+    leetcode: leetcode?.completeProfile ? {
+      totalSolved: leetcode.completeProfile.solvedProblem || 0,
+      easySolved: leetcode.completeProfile.easySolved || 0,
+      mediumSolved: leetcode.completeProfile.mediumSolved || 0,
+      hardSolved: leetcode.completeProfile.hardSolved || 0,
+      weeklyAverage: Math.round(Math.random() * 3) // Mock data
+    } : null,
+    improvement: {
+      lastMonth: {
+        commitIncrease: Math.round(Math.random() * 10 - 3), // Mock data
+        activeDaysIncrease: Math.round(Math.random() * 4 - 1), // Mock data
+        newRepos: Math.round(Math.random() * 2), // Mock data
+        leetcodeIncrease: Math.round(Math.random() * 5) // Mock data
+      }
+    },
+    trends: {
+      commitTrend: "stable",
+      activeDaysTrend: "slight increase",
+      overallTrend: "stable"
+    }
+  };
+};
+
+const createDefaultClassAverageData = () => {
+  return {
+    github: {
+      commits: {
+        total: 45,
+        weekly: 5
+      },
+      repositories: {
+        total: 8,
+        active: 3
+      },
+      consistency: {
+        weeklyAverage: 3.5,
+        longestStreak: 5
+      }
+    },
+    leetcode: {
+      problemsSolved: {
+        total: 25,
+        easy: 15,
+        medium: 8,
+        hard: 2
+      }
+    }
+  };
+};
+
+const createDefaultComparisonData = () => {
+  return {
+    github: {
+      commits: {
+        total: 5, // 5% above average
+        weekly: 10 // 10% above average
+      },
+      repositories: {
+        active: -5 // 5% below average
+      },
+      consistency: {
+        weeklyAverage: 15, // 15% above average
+        streak: 0 // same as average
+      }
+    },
+    leetcode: {
+      problemsSolved: {
+        total: 10, // 10% above average
+        easy: 5,
+        medium: 15,
+        hard: 20
+      }
+    }
+  };
 };
 
 

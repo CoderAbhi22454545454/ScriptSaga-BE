@@ -1,5 +1,49 @@
 import mongoose from 'mongoose';
 
+// Schema for daily activity tracking
+const dailyActivitySchema = new mongoose.Schema({
+  date: {
+    type: Date,
+    required: true
+  },
+  commitCount: {
+    type: Number,
+    default: 0
+  },
+  repositoriesWorkedOn: {
+    type: [String],
+    default: []
+  },
+  leetcodeProblems: {
+    type: Number,
+    default: 0
+  }
+}, { _id: false });
+
+// Schema for weekly metrics
+const weeklyMetricsSchema = new mongoose.Schema({
+  weekOf: {
+    type: Date,
+    required: true
+  },
+  commitCount: {
+    type: Number,
+    default: 0
+  },
+  activeDays: {
+    type: Number,
+    default: 0
+  },
+  repositoriesWorkedOn: {
+    type: [String],
+    default: []
+  },
+  leetcodeProblems: {
+    type: Number,
+    default: 0
+  }
+}, { _id: false });
+
 const studentMetricsSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -24,6 +68,27 @@ const studentMetricsSchema = new mongoose.Schema({
       score: Number,
       stars: Number,
       forks: Number
+    },
+    // Added for consistency tracking
+    consistency: {
+      streak: {
+        current: {
+          type: Number,
+          default: 0
+        },
+        longest: {
+          type: Number,
+          default: 0
+        },
+        last30Days: {
+          type: Number,
+          default: 0
+        }
+      },
+      weeklyAverage: {
+        type: Number,
+        default: 0
+      }
     }
   },
   leetcode: {
@@ -33,7 +98,49 @@ const studentMetricsSchema = new mongoose.Schema({
       medium: Number,
       hard: Number
     },
-    ranking: Number
+    ranking: Number,
+    // Added for consistency tracking
+    consistency: {
+      solvedLastWeek: {
+        type: Number,
+        default: 0
+      },
+      weeklyAverage: {
+        type: Number,
+        default: 0
+      }
+    }
+  },
+  // Daily activity tracking
+  dailyActivity: {
+    type: [dailyActivitySchema],
+    default: []
+  },
+  // Weekly metrics for trends
+  weeklyMetrics: {
+    type: [weeklyMetricsSchema],
+    default: []
+  },
+  // Improvement metrics
+  improvement: {
+    lastMonth: {
+      commitIncrease: {
+        type: Number,
+        default: 0
+      },
+      activeDaysIncrease: {
+        type: Number,
+        default: 0
+      },
+      newRepos: {
+        type: Number,
+        default: 0
+      },
+      leetcodeIncrease: {
+        type: Number,
+        default: 0
+      }
+    }
   },
   lastUpdated: {
     type: Date,
