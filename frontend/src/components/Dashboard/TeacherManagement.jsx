@@ -22,6 +22,7 @@ const TeacherManagement = () => {
     password: "",
     classIds: [],
     githubUsername: "",
+    role: 'teacher'
   });
 
   useEffect(() => {
@@ -52,31 +53,72 @@ const TeacherManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Create a copy of formData with trimmed values
+    const submissionData = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      classIds: formData.classIds,
+      githubUsername: formData.githubUsername.trim(),
+      role: 'teacher'
+    };
+    
+    // Debug: Log the submission data
+    console.log("Submitting teacher data:", submissionData);
+    
+    // Validate githubUsername is not empty
+    if (!submissionData.githubUsername) {
+      toast.error("GitHub Username is required");
+      return;
+    }
+    
+    // Validate at least one class is selected
+    if (submissionData.classIds.length === 0) {
+      toast.error("Please select at least one class");
+      return;
+    }
+    
     try {
       if (isEditing) {
-        const response = await api.put(`/user/update-teacher/${editingId}`, formData);
+        console.log("Sending PUT request with data:", submissionData);
+        const response = await api.put(`/user/update-teacher/${editingId}`, submissionData);
         if (response.data.success) {
           toast.success("Teacher updated successfully");
           setIsEditing(false);
           setEditingId(null);
         }
       } else {
-        const response = await api.post("/user/create-teacher", formData);
+        console.log("Sending POST request with data:", submissionData);
+        
+        // Send the data directly without creating a new object
+        const response = await api.post("/user/create-teacher", submissionData);
+        console.log("Response received:", response.data);
         if (response.data.success) {
           toast.success("Teacher created successfully");
+          fetchTeachers();
+          setFormData({
+            firstName: "",
+            lastName: "",
+            email: "",
+            password: "",
+            classIds: [],
+            githubUsername: "",
+            role: 'teacher'
+          });
         }
       }
-      fetchTeachers();
-      setFormData({
-        firstName: "",
-        lastName: "",
-        email: "",
-        password: "",
-        classIds: [],
-        githubUsername: "",
-      });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Operation failed");
+      console.error("Error details:", error.response?.data);
+      console.error("Full error object:", error);
+      
+      // Extract the specific validation error if available
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          "Operation failed";
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -168,20 +210,19 @@ const TeacherManagement = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="githubUsername">GitHub Username</Label>
+                <Label htmlFor="githubUsername">GitHub Username <span className="text-red-500">*</span></Label>
                 <Input
                   id="githubUsername"
-                  placeholder="GitHub Username"
+                  placeholder="Enter GitHub Username (required)"
                   value={formData.githubUsername}
                   onChange={(e) => setFormData({ ...formData, githubUsername: e.target.value })}
                   required
                 />
+                <p className="text-xs text-gray-500">GitHub username is required for teacher accounts</p>
               </div>
 
-             
-
               <div className="space-y-2">
-                <Label htmlFor="classes">Classes</Label>
+                <Label htmlFor="classes">Classes <span className="text-red-500">*</span></Label>
                 <select
                   id="classes"
                   multiple
@@ -199,6 +240,7 @@ const TeacherManagement = () => {
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500">Hold Ctrl/Cmd to select multiple classes</p>
               </div>
 
               <Button type="submit">{isEditing ? "Update" : "Add"} Teacher</Button>

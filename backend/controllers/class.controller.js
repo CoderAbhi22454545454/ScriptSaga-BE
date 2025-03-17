@@ -2,6 +2,20 @@ import { Class } from "../models/class.model.js";
 import { User } from '../models/user.model.js';
 import mongoose from 'mongoose';
 import ExcelJS from 'exceljs';
+import { GithubData } from '../models/githubData.model.js';
+import { LeetCode } from '../models/leetcode.model.js';
+import axios from 'axios';
+import { leetCodeUserInfo } from '../services/leetcode.service.js';
+
+// Create GitHub API instance
+const GitHub_BaseURL = "https://api.github.com";
+const token = process.env.GITHUB_TOKEN;
+const githubApi = axios.create({
+    baseURL: GitHub_BaseURL,
+    headers: {
+        'Authorization': `token ${token}`
+    }
+});
 
 export const createClass = async (req, res) => {
     try {
@@ -558,4 +572,236 @@ export const downloadClassDataWithProgress = async (req, res) => {
       res.end();
     }
   }
+};
+
+export const validateStudentPlatforms = async (req, res) => {
+    try {
+        const { classId } = req.params;
+        
+        // Validate MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(classId)) {
+            return res.status(400).json({
+                message: "Invalid class ID format",
+                success: false
+            });
+        }
+
+        // Fetch all students in the class
+        const students = await User.find({ 
+            classId, 
+            role: 'student' 
+        })
+        .select('_id githubID leetCodeID')
+        .lean();
+
+        if (!students.length) {
+            return res.status(200).json({
+                success: true,
+                validations: [],
+                message: 'No students found in this class'
+            });
+        }
+
+        // Prepare arrays of IDs to validate
+        const githubStudents = students.filter(s => s.githubID);
+        const leetcodeStudents = students.filter(s => s.leetCodeID);
+
+        // Rate limiting helper
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const BATCH_SIZE = 5;
+        const DELAY_BETWEEN_BATCHES = 2000; // 2 second delay between batches
+
+        // Batch validate GitHub IDs with rate limiting
+        const githubValidations = [];
+        for (let i = 0; i < githubStudents.length; i += BATCH_SIZE) {
+            const batch = githubStudents.slice(i, i + BATCH_SIZE);
+            const batchPromises = batch.map(async (student) => {
+                try {
+                    // Check if GitHub data is cached in GithubData collection
+                    const githubData = await GithubData.findOne({ userId: student._id });
+                    
+                    // If we have recent data (less than 24 hours old), use that
+                    if (githubData && Date.now() - githubData.lastUpdated < 24 * 60 * 60 * 1000) {
+                        return {
+                            studentId: student._id,
+                            githubValid: githubData.isValid === true,
+                            fromCache: true
+                        };
+                    }
+                    
+                    // Validate GitHub username format first
+                    const githubUsernameRegex = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+                    if (!githubUsernameRegex.test(student.githubID)) {
+                        console.log(`Invalid GitHub username format: ${student.githubID}`);
+                        return {
+                            studentId: student._id,
+                            githubValid: false,
+                            fromCache: false,
+                            error: 'Invalid GitHub username format'
+                        };
+                    }
+                    
+                    // Check GitHub API
+                    const response = await githubApi.get(`/users/${student.githubID}`);
+                    
+                    if (response.status !== 200) {
+                        throw new Error(`GitHub API returned status ${response.status}`);
+                    }
+                    
+                    // Verify the response contains expected user data
+                    if (!response.data || !response.data.login) {
+                        throw new Error('Invalid GitHub API response');
+                    }
+                    
+                    // Create or update GitHub data cache
+                    await GithubData.findOneAndUpdate(
+                        { userId: student._id },
+                        { 
+                            userId: student._id,
+                            githubId: student.githubID,
+                            lastUpdated: Date.now(),
+                            data: response.data,
+                            isValid: true
+                        },
+                        { upsert: true }
+                    );
+                    
+                    return {
+                        studentId: student._id,
+                        githubValid: true,
+                        fromCache: false
+                    };
+                } catch (error) {
+                    console.log(`GitHub validation error for ${student.githubID}:`, error.response?.status || error.message);
+                    return {
+                        studentId: student._id,
+                        githubValid: false,
+                        fromCache: false,
+                        error: error.response?.status === 404 ? 'GitHub account not found' : 'GitHub validation error'
+                    };
+                }
+            });
+            
+            const batchResults = await Promise.all(batchPromises);
+            githubValidations.push(...batchResults);
+            
+            // Add delay between batches to respect rate limits
+            if (i + BATCH_SIZE < githubStudents.length) {
+                await delay(DELAY_BETWEEN_BATCHES);
+            }
+        }
+
+        // Batch validate LeetCode IDs with rate limiting
+        const leetcodeValidations = [];
+        for (let i = 0; i < leetcodeStudents.length; i += BATCH_SIZE) {
+            const batch = leetcodeStudents.slice(i, i + BATCH_SIZE);
+            const batchPromises = batch.map(async (student) => {
+                try {
+                    // Check if LeetCode data is cached
+                    const leetcodeData = await LeetCode.findOne({ userId: student._id });
+                    
+                    // If we have recent data (less than 24 hours old), use that
+                    if (leetcodeData && Date.now() - leetcodeData.lastUpdated < 24 * 60 * 60 * 1000) {
+                        return {
+                            studentId: student._id,
+                            leetcodeValid: leetcodeData.isValid === true,
+                            fromCache: true
+                        };
+                    }
+                    
+                    // Check LeetCode API
+                    const data = await leetCodeUserInfo(student.leetCodeID);
+                    const isValid = !!data.basicProfile?.username;
+                    
+                    if (isValid) {
+                        // Update LeetCode data cache
+                        await LeetCode.findOneAndUpdate(
+                            { userId: student._id },
+                            { 
+                                userId: student._id,
+                                leetCodeId: student.leetCodeID,
+                                lastUpdated: Date.now(),
+                                data: data,
+                                isValid: true
+                            },
+                            { upsert: true }
+                        );
+                    } else {
+                        throw new Error('LeetCode profile not found');
+                    }
+                    
+                    return {
+                        studentId: student._id,
+                        leetcodeValid: true,
+                        fromCache: false
+                    };
+                } catch (error) {
+                    console.log(`LeetCode validation error for ${student.leetCodeID}:`, error.message);
+                    return {
+                        studentId: student._id,
+                        leetcodeValid: false,
+                        fromCache: false,
+                        error: 'LeetCode profile not found or invalid'
+                    };
+                }
+            });
+            
+            const batchResults = await Promise.all(batchPromises);
+            leetcodeValidations.push(...batchResults);
+            
+            // Add delay between batches to respect rate limits
+            if (i + BATCH_SIZE < leetcodeStudents.length) {
+                await delay(DELAY_BETWEEN_BATCHES);
+            }
+        }
+
+        // Combine the results
+        const validationMap = {};
+        
+        // Initialize with all students
+        students.forEach(student => {
+            validationMap[student._id.toString()] = {
+                studentId: student._id,
+                githubID: student.githubID || null,
+                leetCodeID: student.leetCodeID || null,
+                githubValid: false,
+                leetcodeValid: false,
+                errors: {}
+            };
+        });
+        
+        // Add GitHub validations
+        githubValidations.forEach(validation => {
+            const id = validation.studentId.toString();
+            if (validationMap[id]) {
+                validationMap[id].githubValid = validation.githubValid;
+                if (validation.error) {
+                    validationMap[id].errors.github = validation.error;
+                }
+            }
+        });
+        
+        // Add LeetCode validations
+        leetcodeValidations.forEach(validation => {
+            const id = validation.studentId.toString();
+            if (validationMap[id]) {
+                validationMap[id].leetcodeValid = validation.leetcodeValid;
+                if (validation.error) {
+                    validationMap[id].errors.leetcode = validation.error;
+                }
+            }
+        });
+
+        return res.status(200).json({
+            success: true,
+            validations: Object.values(validationMap)
+        });
+    } catch (error) {
+        console.error('Error validating student platforms:', error);
+        res.status(500).json({ 
+            message: "Server error", 
+            success: false,
+            error: error.message 
+        });
+    }
 };

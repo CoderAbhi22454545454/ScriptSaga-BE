@@ -539,9 +539,9 @@ export const updateProfile = async (req, res) => {
 
 export const createTeacher = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, classIds } = req.body;
+    const { firstName, lastName, email, password, classIds, githubUsername } = req.body;
 
-    if (!firstName || !lastName || !email || !password || !classIds) {
+    if (!firstName || !lastName || !email || !password || !classIds || !githubUsername) {
       return res.status(400).json({
         message: 'Please enter all required fields',
         success: false,
@@ -563,7 +563,8 @@ export const createTeacher = async (req, res) => {
       email,
       password: hashedPassword,
       role: 'teacher',
-      classId: classIds
+      classId: classIds,
+      githubUsername: githubUsername
     });
 
     res.status(201).json({
