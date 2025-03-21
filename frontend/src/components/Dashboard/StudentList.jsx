@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/constants/constant';
 import { toast } from "sonner";
@@ -14,11 +14,45 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// Cache utility functions
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // Increased to 24 hours for better performance
+const BATCH_SIZE = 10; // Number of students to validate in one batch
+
+const getCachedData = (key) => {
+  try {
+    const cachedItem = localStorage.getItem(key);
+    if (!cachedItem) return null;
+    
+    const { data, timestamp } = JSON.parse(cachedItem);
+    const isExpired = Date.now() - timestamp > CACHE_EXPIRY;
+    
+    return isExpired ? null : data;
+  } catch (error) {
+    console.error('Error retrieving cached data:', error);
+    return null;
+  }
+};
+
+const setCachedData = (key, data) => {
+  try {
+    const cacheItem = {
+      data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(cacheItem));
+  } catch (error) {
+    console.error('Error caching data:', error);
+  }
+};
+
 const StudentList = () => {
     const { classId } = useParams();
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [validationLoading, setValidationLoading] = useState(false);
+    const [validationProgress, setValidationProgress] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
+    const [downloading, setDownloading] = useState(false);
     const navigate = useNavigate();
     const [classData, setClassData] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -50,6 +84,218 @@ const StudentList = () => {
         return rollNoA - rollNoB
     });
 
+    // Delay validation function to be called after initial render
+    const validateStudentProfiles = useCallback(async (studentData) => {
+        if (!studentData || studentData.length === 0) return [];
+        
+        try {
+            setValidationLoading(true);
+            setValidationProgress(0);
+            
+            // First check for cached validation results
+            const cachedValidationKey = `validation_${classId}`;
+            const cachedValidation = getCachedData(cachedValidationKey);
+            
+            if (cachedValidation) {
+                setValidationLoading(false);
+                
+                // Apply cached validation results to students
+                const validatedStudents = studentData.map(student => {
+                    const cachedResult = cachedValidation.find(cache => cache.studentId === student._id);
+                    if (cachedResult) {
+                        return {
+                            ...student,
+                            githubValid: cachedResult.githubValid,
+                            leetcodeValid: cachedResult.leetcodeValid
+                        };
+                    }
+                    return {
+                        ...student,
+                        githubValid: false,
+                        leetcodeValid: false
+                    };
+                });
+                
+                return validatedStudents;
+            }
+            
+            // Try to use batch validation API if available
+            try {
+                // Get list of students with GitHub and LeetCode IDs
+                const githubStudents = studentData
+                    .filter(s => s.githubID)
+                    .map(s => ({ studentId: s._id, platformId: s.githubID }));
+                
+                const leetcodeStudents = studentData
+                    .filter(s => s.leetCodeID)
+                    .map(s => ({ studentId: s._id, platformId: s.leetCodeID }));
+                
+                // Perform batch validation if API endpoints exist
+                let githubResults = [];
+                let leetcodeResults = [];
+                
+                // Batch GitHub validation (assuming batch API exists, if not, will catch and fall back)
+                if (githubStudents.length > 0) {
+                    const githubResponse = await api.post('/github/batch-validate', { students: githubStudents });
+                    if (githubResponse.data.success) {
+                        githubResults = githubResponse.data.results;
+                    }
+                }
+                
+                // Batch LeetCode validation (assuming batch API exists, if not, will catch and fall back)
+                if (leetcodeStudents.length > 0) {
+                    const leetcodeResponse = await api.post('/lcode/batch-validate', { students: leetcodeStudents });
+                    if (leetcodeResponse.data.success) {
+                        leetcodeResults = leetcodeResponse.data.results;
+                    }
+                }
+                
+                // Map results back to students
+                const validationMap = studentData.map(student => {
+                    const githubResult = githubResults.find(r => r.studentId === student._id);
+                    const leetcodeResult = leetcodeResults.find(r => r.studentId === student._id);
+                    
+                    return {
+                        studentId: student._id,
+                        githubValid: githubResult ? githubResult.isValid : false,
+                        leetcodeValid: leetcodeResult ? leetcodeResult.isValid : false
+                    };
+                });
+                
+                // Cache validation results
+                setCachedData(cachedValidationKey, validationMap);
+                
+                // Apply validation results to students
+                const validatedStudents = studentData.map(student => {
+                    const validation = validationMap.find(v => v.studentId === student._id);
+                    if (validation) {
+                        return {
+                            ...student,
+                            githubValid: validation.githubValid,
+                            leetcodeValid: validation.leetcodeValid
+                        };
+                    }
+                    return {
+                        ...student,
+                        githubValid: false,
+                        leetcodeValid: false
+                    };
+                });
+                
+                setValidationLoading(false);
+                return validatedStudents;
+                
+            } catch (batchError) {
+                console.log('Batch validation API not available, falling back to individual validations');
+                
+                // Fallback: Process in batches to avoid too many parallel requests
+                let validationResults = [];
+                const totalBatches = Math.ceil(studentData.length / BATCH_SIZE);
+                
+                for (let i = 0; i < totalBatches; i++) {
+                    const start = i * BATCH_SIZE;
+                    const end = Math.min(start + BATCH_SIZE, studentData.length);
+                    const batch = studentData.slice(start, end);
+                    
+                    const batchResults = await Promise.all(
+                        batch.map(async (student) => {
+                            let githubValid = false;
+                            let leetcodeValid = false;
+                            
+                            // Check individual GitHub validity
+                            if (student.githubID) {
+                                try {
+                                    const githubCacheKey = `github_valid_${student._id}`;
+                                    const cachedGithubValid = getCachedData(githubCacheKey);
+                                    
+                                    if (cachedGithubValid !== null) {
+                                        githubValid = cachedGithubValid;
+                                    } else {
+                                        // Try to fetch GitHub summary to verify ID
+                                        const githubResponse = await api.get(`/github/${student._id}/summary`);
+                                        githubValid = githubResponse.data.success && 
+                                                    !githubResponse.data.message?.includes('not found');
+                                        
+                                        // Cache the result
+                                        setCachedData(githubCacheKey, githubValid);
+                                    }
+                                } catch (error) {
+                                    githubValid = false;
+                                }
+                            }
+                            
+                            // Check individual LeetCode validity
+                            if (student.leetCodeID) {
+                                try {
+                                    const leetcodeCacheKey = `leetcode_valid_${student._id}`;
+                                    const cachedLeetcodeValid = getCachedData(leetcodeCacheKey);
+                                    
+                                    if (cachedLeetcodeValid !== null) {
+                                        leetcodeValid = cachedLeetcodeValid;
+                                    } else {
+                                        // Try to fetch LeetCode profile to verify ID
+                                        const leetcodeResponse = await api.get(`/lcodeprofile/${student._id}`);
+                                        leetcodeValid = leetcodeResponse.data && 
+                                                    !leetcodeResponse.data.message?.includes('not found');
+                                        
+                                        // Cache the result
+                                        setCachedData(leetcodeCacheKey, leetcodeValid);
+                                    }
+                                } catch (error) {
+                                    leetcodeValid = false;
+                                }
+                            }
+                            
+                            return {
+                                studentId: student._id,
+                                githubValid,
+                                leetcodeValid
+                            };
+                        })
+                    );
+                    
+                    validationResults = [...validationResults, ...batchResults];
+                    
+                    // Update progress
+                    setValidationProgress(Math.round(((i + 1) / totalBatches) * 100));
+                }
+                
+                // Cache the combined results
+                setCachedData(cachedValidationKey, validationResults);
+                
+                // Apply validation results to students
+                const validatedStudents = studentData.map(student => {
+                    const validation = validationResults.find(v => v.studentId === student._id);
+                    if (validation) {
+                        return {
+                            ...student,
+                            githubValid: validation.githubValid,
+                            leetcodeValid: validation.leetcodeValid
+                        };
+                    }
+                    return {
+                        ...student,
+                        githubValid: false,
+                        leetcodeValid: false
+                    };
+                });
+                
+                setValidationLoading(false);
+                return validatedStudents;
+            }
+        } catch (error) {
+            console.error('Validation error:', error);
+            setValidationLoading(false);
+            
+            // Return students without validation in case of error
+            return studentData.map(student => ({
+                ...student,
+                githubValid: false,
+                leetcodeValid: false
+            }));
+        }
+    }, [classId]);
+
     const fetchData = async () => {
         try {
             setLoading(true);
@@ -76,81 +322,47 @@ const StudentList = () => {
             
             const studentData = studentsResponse.data.students;
             
-            // Check GitHub and LeetCode validity
-            const studentsWithVerification = await Promise.all(
-                studentData.map(async (student) => {
-                    let githubValid = false;
-                    let leetcodeValid = false;
-                    
-                    if (student.githubID) {
-                        try {
-                            // Check if GitHub data is cached
-                            const githubCacheKey = `github_valid_${student._id}`;
-                            const cachedGithubValid = getCachedData(githubCacheKey);
-                            
-                            if (cachedGithubValid !== null) {
-                                githubValid = cachedGithubValid;
-                            } else {
-                                // Try to fetch GitHub summary to verify ID
-                                const githubResponse = await api.get(`/github/${student._id}/summary`);
-                                githubValid = githubResponse.data.success && 
-                                             !githubResponse.data.message?.includes('not found');
-                                
-                                // Cache the result
-                                setCachedData(githubCacheKey, githubValid);
-                            }
-                        } catch (error) {
-                            githubValid = false;
-                        }
-                    }
-                    
-                    if (student.leetCodeID) {
-                        try {
-                            // Check if LeetCode data is cached
-                            const leetcodeCacheKey = `leetcode_valid_${student._id}`;
-                            const cachedLeetcodeValid = getCachedData(leetcodeCacheKey);
-                            
-                            if (cachedLeetcodeValid !== null) {
-                                leetcodeValid = cachedLeetcodeValid;
-                            } else {
-                                // Try to fetch LeetCode profile to verify ID
-                                const leetcodeResponse = await api.get(`/lcodeprofile/${student._id}`);
-                                leetcodeValid = leetcodeResponse.data && 
-                                               !leetcodeResponse.data.message?.includes('not found');
-                                
-                                // Cache the result
-                                setCachedData(leetcodeCacheKey, leetcodeValid);
-                            }
-                        } catch (error) {
-                            leetcodeValid = false;
-                        }
-                    }
-                    
-                    return {
-                        ...student,
-                        githubValid,
-                        leetcodeValid
-                    };
-                })
-            );
+            // First, set students without validation to show the list quickly
+            setStudents(studentData.map(student => ({
+                ...student,
+                githubValid: false,
+                leetcodeValid: false
+            })));
             
-            setStudents(studentsWithVerification);
-            
-            // Calculate stats
+            // Calculate initial stats without validation
             setStats({
                 total: studentData.length,
                 withGithub: studentData.filter(s => s.githubID).length,
                 withLeetcode: studentData.filter(s => s.leetCodeID).length,
-                withValidGithub: studentsWithVerification.filter(s => s.githubValid).length,
-                withValidLeetcode: studentsWithVerification.filter(s => s.leetcodeValid).length
+                withValidGithub: 0,
+                withValidLeetcode: 0
             });
+            
+            // Set loading false for the main data
+            setLoading(false);
+            
+            // Start validation process asynchronously
+            // This allows the UI to display immediately while validation happens in background
+            setTimeout(async () => {
+                const studentsWithVerification = await validateStudentProfiles(studentData);
+                setStudents(studentsWithVerification);
+                
+                // Update stats after validation
+                setStats({
+                    total: studentData.length,
+                    withGithub: studentData.filter(s => s.githubID).length,
+                    withLeetcode: studentData.filter(s => s.leetCodeID).length,
+                    withValidGithub: studentsWithVerification.filter(s => s.githubValid).length,
+                    withValidLeetcode: studentsWithVerification.filter(s => s.leetcodeValid).length
+                });
+            }, 100);
+            
         } catch (error) {
             console.error('Error fetching data:', error);
             const errorMessage = error.response?.data?.message || error.message || 'An error occurred while fetching data';
             setError(errorMessage);
             toast.error(errorMessage);
         } finally {
-            setLoading(false);
             setRefreshing(false);
         }
     };
@@ -168,164 +380,26 @@ const StudentList = () => {
 
     const handleDownload = async () => {
       try {
-        // Show loading toast
-        const loadingToast = toast.loading('Preparing Excel file with student progress data...');
+        // Disable button during download
+        setDownloading(true);
         
-        // First, gather all student progress data
-        const progressPromises = students.map(async (student) => {
-          try {
-            // Check if student has GitHub ID
-            if (!student.githubID) {
-              return {
-                studentId: student._id,
-                hasGitHub: false,
-                progressData: null,
-                codingProgress: 'Not Available',
-                careerSuggestion: 'Not Available'
-              };
-            }
-            
-            // Try to get cached data first
-            const progressCacheKey = `progress_data_${student._id}`;
-            let progressData = getCachedData(progressCacheKey);
-            let githubData = null;
-            let leetcodeData = null;
-            
-            // If no cached data, try to fetch from metrics API
-            if (!progressData) {
-              try {
-                const progressResponse = await api.getStudentProgressReport(student._id);
-                progressData = progressResponse.data;
-                
-                // Cache the result if valid
-                if (progressData && progressData.codingActivity) {
-                  setCachedData(progressCacheKey, progressData);
-                }
-              } catch (error) {
-                console.log(`Metrics API failed for student ${student._id}:`, error.response?.data?.message || error.message);
-                
-                // If metrics API fails, fetch GitHub and LeetCode data directly
-                try {
-                  // Fetch GitHub data
-                  const githubResponse = await api.get(`/github/${student._id}/summary`);
-                  if (githubResponse.data.success) {
-                    githubData = githubResponse.data.summary;
-                  }
-                } catch (githubError) {
-                  console.log(`GitHub API failed for student ${student._id}:`, githubError.message);
-                }
-                
-                try {
-                  // Fetch LeetCode data
-                  if (student.leetCodeID) {
-                    const leetcodeResponse = await api.get(`/lcodeprofile/${student._id}`);
-                    leetcodeData = leetcodeResponse.data;
-                  }
-                } catch (leetcodeError) {
-                  console.log(`LeetCode API failed for student ${student._id}:`, leetcodeError.message);
-                }
-                
-                // Create fallback progress data from GitHub and LeetCode data
-                if (githubData) {
-                  progressData = createFallbackProgressData(githubData, leetcodeData);
-                }
-              }
-            }
-            
-            // Determine coding progress rating
-            let codingProgress = 'Not Available';
-            let careerSuggestion = 'Not Available';
-            
-            if (progressData && progressData.codingActivity) {
-              const { totalCommits, activeDaysLast30, weeklyAverage } = progressData.codingActivity;
-              
-              // Simple algorithm to determine coding progress
-              if (totalCommits > 100 && activeDaysLast30 > 20 && weeklyAverage > 4) {
-                codingProgress = 'Very Good';
-                careerSuggestion = 'Software Engineer, Full-stack Developer';
-              } else if (totalCommits > 50 && activeDaysLast30 > 15 && weeklyAverage > 3) {
-                codingProgress = 'Good';
-                careerSuggestion = 'Web Developer, Backend Developer';
-              } else if (totalCommits > 20 && activeDaysLast30 > 10 && weeklyAverage > 2) {
-                codingProgress = 'Average';
-                careerSuggestion = 'Junior Developer, QA Engineer';
-              } else if (totalCommits > 0) {
-                codingProgress = 'Needs Improvement';
-                careerSuggestion = 'IT Support, Technical Writer';
-              } else {
-                codingProgress = 'Not Started';
-                careerSuggestion = 'Explore Coding Fundamentals';
-              }
-            } else if (githubData) {
-              // Fallback to using just GitHub data for evaluation
-              const totalCommits = githubData.totalCommits || 0;
-              
-              if (totalCommits > 100) {
-                codingProgress = 'Very Good';
-                careerSuggestion = 'Software Engineer, Full-stack Developer';
-              } else if (totalCommits > 50) {
-                codingProgress = 'Good';
-                careerSuggestion = 'Web Developer, Backend Developer';
-              } else if (totalCommits > 20) {
-                codingProgress = 'Average';
-                careerSuggestion = 'Junior Developer, QA Engineer';
-              } else if (totalCommits > 0) {
-                codingProgress = 'Needs Improvement';
-                careerSuggestion = 'IT Support, Technical Writer';
-              } else {
-                codingProgress = 'Not Started';
-                careerSuggestion = 'Explore Coding Fundamentals';
-              }
-            }
-            
-            return {
-              studentId: student._id,
-              hasGitHub: true,
-              progressData,
-              githubData,
-              leetcodeData,
-              codingProgress,
-              careerSuggestion
-            };
-          } catch (error) {
-            console.error(`Error processing student ${student._id}:`, error);
-            return {
-              studentId: student._id,
-              hasGitHub: false,
-              progressData: null,
-              codingProgress: 'Error',
-              careerSuggestion: 'Not Available'
-            };
-          }
+        // Show loading toast with detailed message
+        const loadingToast = toast.loading('Preparing Excel file... This may take a few moments', {
+          duration: 60000, // Long duration to ensure it stays visible
         });
         
-        // Wait for all progress data to be gathered
-        const progressResults = await Promise.all(progressPromises);
-        
-        // Create a map for quick lookup
-        const progressMap = progressResults.reduce((map, result) => {
-          map[result.studentId] = result;
-          return map;
-        }, {});
-        
-        // Now make the API call with the enhanced data
-        const response = await api.post(`/class/${classId}/excel-with-progress`, {
-          students: students.map(student => ({
-            ...student,
-            progress: progressMap[student._id] || {
-              hasGitHub: false,
-              codingProgress: 'Not Available',
-              careerSuggestion: 'Not Available'
-            }
-          }))
-        }, {
+        // Use the optimized endpoint that does everything on the server
+        const response = await api.get(`/class/${classId}/excel-with-progress`, {
           responseType: 'blob'
         });
         
         // Dismiss loading toast
         toast.dismiss(loadingToast);
         
-        const fileName = `Class_${classData.yearOfStudy}_${classData.division}_with_progress`;
+        // Create a better filename
+        const fileName = `Class_${classData.yearOfStudy}_${classData.division}_Progress_${new Date().toISOString().split('T')[0]}`;
+        
+        // Create download link
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
@@ -338,7 +412,7 @@ const StudentList = () => {
         toast.success('Excel file with progress data downloaded successfully');
       } catch (error) {
         console.error('Download error:', error);
-        toast.error('Failed to download excel file with progress data');
+        toast.error('Failed to download excel file with progress data. Retrying with basic data...');
         
         // Fallback to regular excel download if progress data fails
         try {
@@ -346,7 +420,7 @@ const StudentList = () => {
             responseType: 'blob'
           });
           
-          const fileName = `Class_${classData.yearOfStudy}_${classData.division}`;
+          const fileName = `Class_${classData.yearOfStudy}_${classData.division}_Basic`;
           const url = window.URL.createObjectURL(new Blob([response.data]));
           const link = document.createElement('a');
           link.href = url;
@@ -356,11 +430,14 @@ const StudentList = () => {
           link.remove();
           window.URL.revokeObjectURL(url);
           
-          toast.success('Basic Excel file downloaded successfully (without progress data)');
+          toast.success('Basic Excel file downloaded (without progress data)');
         } catch (fallbackError) {
           console.error('Fallback download error:', fallbackError);
           toast.error('Failed to download excel file');
         }
+      } finally {
+        // Always re-enable button
+        setDownloading(false);
       }
     };
 
@@ -421,35 +498,12 @@ const StudentList = () => {
       };
     };
 
-    // Add the cache utility functions at the top of the file, after the imports
-    // Cache utility functions
-    const CACHE_EXPIRY = 30 * 60 * 1000; // 30 minutes in milliseconds
-
-    const getCachedData = (key) => {
-      try {
-        const cachedItem = localStorage.getItem(key);
-        if (!cachedItem) return null;
-        
-        const { data, timestamp } = JSON.parse(cachedItem);
-        const isExpired = Date.now() - timestamp > CACHE_EXPIRY;
-        
-        return isExpired ? null : data;
-      } catch (error) {
-        console.error('Error retrieving cached data:', error);
-        return null;
-      }
-    };
-
-    const setCachedData = (key, data) => {
-      try {
-        const cacheItem = {
-          data,
-          timestamp: Date.now()
-        };
-        localStorage.setItem(key, JSON.stringify(cacheItem));
-      } catch (error) {
-        console.error('Error caching data:', error);
-      }
+    // Add helper text if validation is in progress
+    const getStatusMessage = () => {
+        if (validationLoading) {
+            return `Showing ${filterStudent.length} of ${students.length} students (validation in progress)`;
+        }
+        return `Showing ${filterStudent.length} of ${students.length} students`;
     };
 
     if (loading && !refreshing) {
@@ -521,7 +575,7 @@ const StudentList = () => {
                             onClick={handleRefresh} 
                             variant="outline" 
                             size="sm"
-                            disabled={refreshing}
+                            disabled={refreshing || downloading}
                         >
                             <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                             {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -530,12 +584,42 @@ const StudentList = () => {
                         <Button
                             onClick={handleDownload}
                             className="bg-blue-600 hover:bg-blue-700"
+                            disabled={downloading}
                         >
-                            <Download className="mr-2 h-4 w-4" />
-                            Export Excel
+                            {downloading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Downloading...
+                                </>
+                            ) : (
+                                <>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Export Excel
+                                </>
+                            )}
                         </Button>
                     </div>
                 </div>
+                
+                {/* Validation Progress Indicator */}
+                {validationLoading && (
+                    <Card className="bg-blue-50 border-blue-200 mb-4">
+                        <CardContent className="p-4">
+                            <div className="flex items-center">
+                                <Loader2 className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                                <p className="text-sm text-blue-600">
+                                    Validating student profiles ({validationProgress}%)
+                                </p>
+                            </div>
+                            <div className="h-1 w-full bg-blue-200 mt-2 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-blue-600 transition-all duration-300 ease-in-out" 
+                                    style={{ width: `${validationProgress}%` }}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
                 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -804,7 +888,7 @@ const StudentList = () => {
                     </CardContent>
                     <CardFooter className="border-t bg-gray-50 px-6 py-3">
                         <p className="text-xs text-gray-500">
-                            Showing {filterStudent.length} of {students.length} students
+                            {getStatusMessage()}
                         </p>
                     </CardFooter>
                 </Card>

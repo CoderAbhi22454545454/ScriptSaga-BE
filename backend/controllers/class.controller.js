@@ -6,6 +6,7 @@ import { GithubData } from '../models/githubData.model.js';
 import { LeetCode } from '../models/leetcode.model.js';
 import axios from 'axios';
 import { leetCodeUserInfo } from '../services/leetcode.service.js';
+import { StudentMetrics } from '../models/studentMetrics.model.js';
 
 // Create GitHub API instance
 const GitHub_BaseURL = "https://api.github.com";
@@ -804,4 +805,616 @@ export const validateStudentPlatforms = async (req, res) => {
             error: error.message 
         });
     }
+};
+
+export const downloadClassDataWithPrecomputedProgress = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    console.log(`[Excel Generation] Starting excel generation for class ${classId}`);
+    
+    // Fetch class details
+    const classData = await Class.findById(classId);
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Class not found'
+      });
+    }
+
+    console.log(`[Excel Generation] Found class: ${classData.className} ${classData.yearOfStudy}-${classData.division}`);
+
+    // First, find all students in this class
+    const students = await User.find({ 
+      classId: classId,
+      role: 'student'
+    }).lean();
+
+    // Get list of student IDs for bulk data fetching
+    const studentIds = students.map(s => s._id);
+    
+    console.log(`[Excel Generation] Found ${students.length} students`);
+
+    // Fetch GitHub data in bulk
+    const githubData = await GithubData.find({
+      userId: { $in: studentIds }
+    }).lean();
+    
+    console.log(`[Excel Generation] Found ${githubData.length} GitHub profiles`);
+
+    // Fetch LeetCode data in bulk
+    const leetcodeData = await LeetCode.find({
+      userId: { $in: studentIds }
+    }).lean();
+    
+    console.log(`[Excel Generation] Found ${leetcodeData.length} LeetCode profiles`);
+
+    // Create lookup maps for quick access
+    const githubDataMap = githubData.reduce((map, data) => {
+      map[data.userId.toString()] = data;
+      return map;
+    }, {});
+
+    const leetcodeDataMap = leetcodeData.reduce((map, data) => {
+      map[data.userId.toString()] = data;
+      return map;
+    }, {});
+
+    // Try to fetch metrics data in bulk if available
+    let metricsMap = {};
+    try {
+      const metricsData = await StudentMetrics.find({
+        userId: { $in: studentIds }
+      }).lean();
+      
+      console.log(`[Excel Generation] Found ${metricsData.length} student metrics records`);
+      
+      // Create a lookup map for quick access
+      metricsMap = metricsData.reduce((map, metric) => {
+        map[metric.userId.toString()] = metric;
+        return map;
+      }, {});
+    } catch (error) {
+      console.log('Bulk metrics fetch failed, will use fallback data:', error.message);
+    }
+
+    // Create workbook
+    const workbook = new ExcelJS.Workbook();
+    
+    // Add a cover sheet with explanations
+    const coverSheet = workbook.addWorksheet('About This Report');
+    
+    // Add title and date
+    coverSheet.mergeCells('A1:E1');
+    const titleCell = coverSheet.getCell('A1');
+    titleCell.value = `Student Progress Report - ${classData.className} ${classData.yearOfStudy} ${classData.division}`;
+    titleCell.font = { size: 16, bold: true };
+    titleCell.alignment = { horizontal: 'center' };
+    
+    // Add date
+    coverSheet.mergeCells('A2:E2');
+    const dateCell = coverSheet.getCell('A2');
+    dateCell.value = `Generated on: ${new Date().toLocaleDateString()}`;
+    dateCell.font = { size: 12, italic: true };
+    dateCell.alignment = { horizontal: 'center' };
+    
+    // Add explanation
+    coverSheet.addRow([]);
+    coverSheet.addRow(['What is this report?']);
+    coverSheet.getRow(4).font = { bold: true, size: 14 };
+    
+    const explanationRows = [
+      ['This report provides an overview of students\' coding progress based on their GitHub and LeetCode activities.'],
+      ['GitHub is a platform where students store and share their code projects.'],
+      ['LeetCode is a platform where students practice coding problems and algorithms.'],
+      [''],
+      ['Understanding the Student Progress Levels:'],
+      ['• Excellent: Student is very active in coding, has multiple projects and consistent activity'],
+      ['• Good: Student has regular coding activity and is making steady progress'],
+      ['• Satisfactory: Student has some coding activity but could be more consistent'],
+      ['• Needs Improvement: Student has minimal coding activity'],
+      ['• Not Started: Student has a GitHub account but hasn\'t started coding yet'],
+      ['• Not Connected: Student hasn\'t connected their GitHub account']
+    ];
+    
+    explanationRows.forEach(row => {
+      coverSheet.addRow(row);
+    });
+    
+    // Format cover sheet
+    coverSheet.getColumn(1).width = 80;
+    
+    // Add instructions
+    coverSheet.addRow([]);
+    coverSheet.addRow(['How to use this report:']);
+    coverSheet.getRow(coverSheet.lastRow.number).font = { bold: true, size: 14 };
+    
+    const instructionRows = [
+      ['1. Review the "Student Progress" sheet to see each student\'s coding progress'],
+      ['2. Check the "Class Summary" sheet for an overview of the entire class'],
+      ['3. Use the "Progress Levels" information to identify which students might need additional support'],
+      ['4. Look at "Coding Activity" to see how active students are in coding'],
+      ['5. The "Career Path Suggestions" are general recommendations based on coding patterns']
+    ];
+    
+    instructionRows.forEach(row => {
+      coverSheet.addRow(row);
+    });
+    
+    // Add main data worksheet with a user-friendly name
+    const worksheet = workbook.addWorksheet('Student Progress');
+
+    // Define columns with more user-friendly headers
+    worksheet.columns = [
+      { header: 'Roll No', key: 'rollNo', width: 10 },
+      { header: 'Student Name', key: 'name', width: 25 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Progress Level', key: 'progressLevel', width: 20 },
+      { header: 'Coding Activity', key: 'codingActivity', width: 15 },
+      { header: 'Consistency', key: 'consistency', width: 15 },
+      { header: 'Problem Solving', key: 'problemSolving', width: 20 },
+      { header: 'Career Path Suggestion', key: 'careerSuggestion', width: 35 },
+      { header: 'GitHub ID', key: 'githubID', width: 15 },
+      { header: 'LeetCode ID', key: 'leetCodeID', width: 15 }
+    ];
+    
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true, size: 12 };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD3D3D3' } // Light gray background
+    };
+    
+    // Freeze the header row
+    worksheet.views = [
+      { state: 'frozen', ySplit: 1 }
+    ];
+    
+    // Process students and add to worksheet in a single pass
+    for (const student of students) {
+      try {
+        const studentId = student._id.toString();
+        const hasGitHub = !!student.githubID;
+        const hasLeetCode = !!student.leetCodeID;
+        
+        // Get data from our lookup maps
+        const studentGithubData = githubDataMap[studentId];
+        const studentLeetcodeData = leetcodeDataMap[studentId];
+        const metrics = metricsMap[studentId];
+        
+        // Initialize metrics data
+        let totalCommits = 0;
+        let activeRepos = 0;
+        let problemsSolved = 0;
+        let currentStreak = 0;
+        let longestStreak = 0;
+        let activeDays = 0;
+        let weeklyAverage = 0;
+        
+        // First try to get data from metrics if available
+        if (metrics) {
+          totalCommits = metrics.github?.commits?.total || 0;
+          activeRepos = metrics.github?.repositories?.active || 0;
+          problemsSolved = metrics.leetcode?.problemsSolved?.total || 0;
+          currentStreak = metrics.github?.consistency?.streak?.current || 0;
+          longestStreak = metrics.github?.consistency?.streak?.longest || 0;
+          activeDays = metrics.github?.consistency?.streak?.last30Days || 0;
+          weeklyAverage = metrics.github?.consistency?.weeklyAverage || 0;
+        }
+        
+        // If metrics data is not available or incomplete, use the direct GitHub/LeetCode data
+        if (totalCommits === 0 && studentGithubData) {
+          totalCommits = studentGithubData.summary?.totalCommits || 0;
+          activeRepos = studentGithubData.summary?.activeRepos || studentGithubData.summary?.totalRepos || 0;
+          
+          // If we have repo data, count active repos (updated in last 3 months)
+          if (studentGithubData.repos && studentGithubData.repos.length > 0) {
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+            
+            activeRepos = studentGithubData.repos.filter(repo => {
+              return new Date(repo.updated_at) > threeMonthsAgo;
+            }).length;
+          }
+        }
+        
+        if (problemsSolved === 0 && studentLeetcodeData) {
+          // Try various places where LeetCode problems count might be stored
+          problemsSolved = studentLeetcodeData.completeProfile?.solvedProblem || 
+                         studentLeetcodeData.basicProfile?.totalSolved || 
+                         studentLeetcodeData.completeProfile?.totalSolved || 0;
+        }
+        
+        // If we still don't have streak data but have commits, estimate it
+        if (hasGitHub && totalCommits > 0 && currentStreak === 0) {
+          // Estimate active days (roughly 1/3 of total commits, capped at 30)
+          activeDays = Math.min(30, Math.round(totalCommits / 3));
+          
+          // Estimate weekly average (roughly active days / 4 weeks, capped at 7)
+          weeklyAverage = Math.min(7, Math.round(activeDays / 4));
+          
+          // Estimate current streak (roughly 1/10 of total commits, capped at 14)
+          currentStreak = Math.min(14, Math.round(totalCommits / 10));
+          
+          // Estimate longest streak (roughly 1/5 of total commits, capped at 30)
+          longestStreak = Math.min(30, Math.round(totalCommits / 5));
+        }
+        
+        // Determine coding progress and career suggestion
+        let progressLevel = 'Not Connected';
+        let codingActivity = 'None';
+        let consistency = 'None';
+        let problemSolving = 'None';
+        let careerSuggestion = 'Connect GitHub to get suggestions';
+        
+        if (hasGitHub) {
+          if (totalCommits === 0) {
+            progressLevel = 'Not Started';
+            codingActivity = 'None';
+            consistency = 'None';
+            careerSuggestion = 'Explore Coding Fundamentals';
+          } else if (totalCommits > 100 && activeDays > 20 && weeklyAverage > 4) {
+            progressLevel = 'Excellent';
+            codingActivity = 'Very High';
+            consistency = 'Excellent';
+            careerSuggestion = 'Software Engineer, Full-stack Developer';
+          } else if (totalCommits > 50 && activeDays > 15 && weeklyAverage > 3) {
+            progressLevel = 'Good';
+            codingActivity = 'High';
+            consistency = 'Good';
+            careerSuggestion = 'Web Developer, Backend Developer';
+          } else if (totalCommits > 20 && activeDays > 10 && weeklyAverage > 2) {
+            progressLevel = 'Satisfactory';
+            codingActivity = 'Moderate';
+            consistency = 'Satisfactory';
+            careerSuggestion = 'Junior Developer, QA Engineer';
+          } else if (totalCommits > 0) {
+            progressLevel = 'Needs Improvement';
+            codingActivity = 'Low';
+            consistency = 'Inconsistent';
+            careerSuggestion = 'IT Support, Technical Writer';
+          }
+        }
+        
+        // Determine problem solving skill based on LeetCode
+        if (hasLeetCode && problemsSolved > 0) {
+          if (problemsSolved > 200) {
+            problemSolving = 'Excellent';
+          } else if (problemsSolved > 100) {
+            problemSolving = 'Very Good';
+          } else if (problemsSolved > 50) {
+            problemSolving = 'Good';
+          } else if (problemsSolved > 20) {
+            problemSolving = 'Satisfactory';
+          } else {
+            problemSolving = 'Basic';
+          }
+        }
+        
+        // Add row to worksheet
+        worksheet.addRow({
+          rollNo: student.rollNo || 'N/A',
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'N/A',
+          email: student.email || 'N/A',
+          progressLevel,
+          codingActivity,
+          consistency,
+          problemSolving,
+          careerSuggestion,
+          githubID: student.githubID || 'Not Connected',
+          leetCodeID: student.leetCodeID || 'Not Connected'
+        });
+      } catch (error) {
+        console.error(`[Excel Generation] Error processing student ${student._id}:`, error);
+        
+        // Add row with minimal data to prevent Excel generation failure
+        worksheet.addRow({
+          rollNo: student.rollNo || 'N/A',
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'N/A',
+          email: student.email || 'N/A',
+          progressLevel: 'Error',
+          codingActivity: 'Error',
+          consistency: 'Error',
+          problemSolving: 'Error',
+          careerSuggestion: 'Not Available',
+          githubID: student.githubID || 'Not Connected',
+          leetCodeID: student.leetCodeID || 'Not Connected'
+        });
+      }
+    }
+    
+    // Apply conditional formatting to the Progress Level column
+    worksheet.getColumn('progressLevel').eachCell({ includeEmpty: false }, (cell, rowNumber) => {
+      if (rowNumber > 1) { // Skip header
+        switch(cell.value) {
+          case 'Excellent':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00B050' } }; // Green
+            break;
+          case 'Good':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } }; // Light green
+            break;
+          case 'Satisfactory':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } }; // Yellow
+            break;
+          case 'Needs Improvement':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF9900' } }; // Orange
+            break;
+          case 'Not Started':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF0000' } }; // Red
+            break;
+          case 'Not Connected':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } }; // Light gray
+            break;
+          case 'Error':
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } }; // Light gray
+            break;
+        }
+      }
+    });
+    
+    // Add a class summary sheet
+    const summarySheet = workbook.addWorksheet('Class Summary');
+    
+    // Add title
+    summarySheet.mergeCells('A1:D1');
+    const summaryTitle = summarySheet.getCell('A1');
+    summaryTitle.value = `Class Summary: ${classData.className} ${classData.yearOfStudy} ${classData.division}`;
+    summaryTitle.font = { size: 14, bold: true };
+    summaryTitle.alignment = { horizontal: 'center' };
+    summarySheet.addRow([]);
+    
+    // Calculate class statistics
+    const totalStudents = students.length;
+    const studentsWithGitHub = students.filter(s => s.githubID).length;
+    const studentsWithLeetCode = students.filter(s => s.leetCodeID).length;
+    const activeStudents = students.filter(s => {
+      const studentId = s._id.toString();
+      const studentGithubData = githubDataMap[studentId];
+      return studentGithubData && (studentGithubData.summary?.totalCommits > 0);
+    }).length;
+    
+    // Add basic stats
+    summarySheet.addRow(['Total Students', totalStudents]);
+    summarySheet.addRow(['Students with GitHub', studentsWithGitHub, `${Math.round((studentsWithGitHub/totalStudents)*100)}%`]);
+    summarySheet.addRow(['Students with LeetCode', studentsWithLeetCode, `${Math.round((studentsWithLeetCode/totalStudents)*100)}%`]);
+    summarySheet.addRow(['Active Coding Students', activeStudents, `${Math.round((activeStudents/totalStudents)*100)}%`]);
+    summarySheet.addRow([]);
+    
+    // Count students by progress level
+    const progressLevels = {
+      'Excellent': 0,
+      'Good': 0,
+      'Satisfactory': 0,
+      'Needs Improvement': 0,
+      'Not Started': 0,
+      'Not Connected': 0,
+      'Error': 0
+    };
+    
+    // Add a chart of progress distribution
+    summarySheet.addRow(['Progress Level Distribution']);
+    summarySheet.getRow(summarySheet.lastRow.number).font = { bold: true };
+    
+    const chartHeaderRow = summarySheet.addRow(['Progress Level', 'Number of Students', 'Percentage']);
+    chartHeaderRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } };
+    });
+    
+    // Count students for each progress level
+    students.forEach(student => {
+      const studentId = student._id.toString();
+      const hasGitHub = !!student.githubID;
+      const studentGithubData = githubDataMap[studentId];
+      const totalCommits = studentGithubData?.summary?.totalCommits || 0;
+      
+      let progressLevel = 'Not Connected';
+      
+      if (hasGitHub) {
+        if (totalCommits === 0) {
+          progressLevel = 'Not Started';
+        } else if (totalCommits > 100) {
+          progressLevel = 'Excellent';
+        } else if (totalCommits > 50) {
+          progressLevel = 'Good';
+        } else if (totalCommits > 20) {
+          progressLevel = 'Satisfactory';
+        } else if (totalCommits > 0) {
+          progressLevel = 'Needs Improvement';
+        }
+      }
+      
+      progressLevels[progressLevel]++;
+    });
+    
+    // Add rows for each progress level with percentage
+    Object.entries(progressLevels).forEach(([level, count]) => {
+      if (count > 0) {
+        const percentage = Math.round((count / totalStudents) * 100);
+        const row = summarySheet.addRow([level, count, `${percentage}%`]);
+        
+        // Apply the same color coding as the main sheet
+        switch(level) {
+          case 'Excellent':
+            row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00B050' } };
+            break;
+          case 'Good':
+            row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+            break;
+          case 'Satisfactory':
+            row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } };
+            break;
+          case 'Needs Improvement':
+            row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF9900' } };
+            break;
+          case 'Not Started':
+            row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF0000' } };
+            break;
+          case 'Not Connected':
+            row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } };
+            break;
+        }
+      }
+    });
+    
+    // Add recommendations section
+    summarySheet.addRow([]);
+    summarySheet.addRow(['Recommendations based on Class Data']);
+    summarySheet.getRow(summarySheet.lastRow.number).font = { bold: true };
+    
+    // Generate recommendations based on class statistics
+    const recommendations = [];
+    
+    if (studentsWithGitHub / totalStudents < 0.7) {
+      recommendations.push('• Encourage more students to connect their GitHub accounts');
+    }
+    
+    if (studentsWithLeetCode / totalStudents < 0.5) {
+      recommendations.push('• Promote LeetCode for algorithm and problem-solving practice');
+    }
+    
+    if (progressLevels['Excellent'] + progressLevels['Good'] < totalStudents * 0.3) {
+      recommendations.push('• Consider more coding assignments to improve activity levels');
+    }
+    
+    if (progressLevels['Not Started'] > totalStudents * 0.2) {
+      recommendations.push('• Identify students who have accounts but aren\'t coding and provide support');
+    }
+    
+    if (recommendations.length === 0) {
+      recommendations.push('• Class is performing well overall in coding activities');
+    }
+    
+    recommendations.forEach(rec => {
+      summarySheet.addRow([rec]);
+    });
+    
+    // Format summary sheet
+    summarySheet.getColumn(1).width = 30;
+    summarySheet.getColumn(2).width = 20;
+    summarySheet.getColumn(3).width = 20;
+    
+    // Add a detailed technical data sheet for instructors
+    const technicalSheet = workbook.addWorksheet('Technical Details');
+    
+    // Add technical columns
+    technicalSheet.columns = [
+      { header: 'Roll No', key: 'rollNo', width: 10 },
+      { header: 'Student Name', key: 'name', width: 25 },
+      { header: 'GitHub ID', key: 'githubID', width: 15 },
+      { header: 'Total Commits', key: 'totalCommits', width: 15 },
+      { header: 'Active Repos', key: 'activeRepos', width: 15 },
+      { header: 'Current Streak (days)', key: 'currentStreak', width: 18 },
+      { header: 'Longest Streak (days)', key: 'longestStreak', width: 18 },
+      { header: 'Active Days (last 30)', key: 'activeDays', width: 18 },
+      { header: 'Weekly Avg. Activity', key: 'weeklyAverage', width: 18 },
+      { header: 'LeetCode ID', key: 'leetCodeID', width: 15 },
+      { header: 'Problems Solved', key: 'problemsSolved', width: 15 }
+    ];
+    
+    // Style the technical sheet header
+    technicalSheet.getRow(1).font = { bold: true };
+    technicalSheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD3D3D3' }
+    };
+    
+    // Add student technical data
+    for (const student of students) {
+      try {
+        const studentId = student._id.toString();
+        const studentGithubData = githubDataMap[studentId];
+        const studentLeetcodeData = leetcodeDataMap[studentId];
+        const metrics = metricsMap[studentId];
+        
+        // Gather technical metrics
+        let totalCommits = 0;
+        let activeRepos = 0;
+        let problemsSolved = 0;
+        let currentStreak = 0;
+        let longestStreak = 0;
+        let activeDays = 0;
+        let weeklyAverage = 0;
+        
+        // Get metrics from available sources
+        if (metrics) {
+          totalCommits = metrics.github?.commits?.total || 0;
+          activeRepos = metrics.github?.repositories?.active || 0;
+          problemsSolved = metrics.leetcode?.problemsSolved?.total || 0;
+          currentStreak = metrics.github?.consistency?.streak?.current || 0;
+          longestStreak = metrics.github?.consistency?.streak?.longest || 0;
+          activeDays = metrics.github?.consistency?.streak?.last30Days || 0;
+          weeklyAverage = metrics.github?.consistency?.weeklyAverage || 0;
+        } else if (studentGithubData) {
+          totalCommits = studentGithubData.summary?.totalCommits || 0;
+          activeRepos = studentGithubData.summary?.activeRepos || studentGithubData.summary?.totalRepos || 0;
+          
+          // Estimate other metrics
+          if (totalCommits > 0) {
+            activeDays = Math.min(30, Math.round(totalCommits / 3));
+            weeklyAverage = Math.min(7, Math.round(activeDays / 4));
+            currentStreak = Math.min(14, Math.round(totalCommits / 10));
+            longestStreak = Math.min(30, Math.round(totalCommits / 5));
+          }
+        }
+        
+        if (problemsSolved === 0 && studentLeetcodeData) {
+          problemsSolved = studentLeetcodeData.completeProfile?.solvedProblem || 
+                         studentLeetcodeData.basicProfile?.totalSolved || 
+                         studentLeetcodeData.completeProfile?.totalSolved || 0;
+        }
+        
+        // Add row to technical sheet
+        technicalSheet.addRow({
+          rollNo: student.rollNo || 'N/A',
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'N/A',
+          githubID: student.githubID || 'Not Connected',
+          totalCommits,
+          activeRepos,
+          currentStreak,
+          longestStreak,
+          activeDays,
+          weeklyAverage,
+          leetCodeID: student.leetCodeID || 'Not Connected',
+          problemsSolved
+        });
+      } catch (error) {
+        console.error(`[Excel Generation] Error adding technical data for student ${student._id}:`, error);
+      }
+    }
+    
+    // Add an explanation row at the top
+    technicalSheet.spliceRows(1, 0, ['This sheet contains detailed technical metrics for instructors and technical staff - not intended for general audience']);
+    technicalSheet.mergeCells('A1:K1');
+    technicalSheet.getRow(1).font = { italic: true };
+    technicalSheet.getRow(1).alignment = { horizontal: 'center' };
+    
+    console.log(`[Excel Generation] Completed processing ${students.length} students`);
+    
+    // Set response headers
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=Student_Progress_Report_${classData.yearOfStudy}_${classData.division}.xlsx`
+    );
+
+    // Write workbook to response
+    await workbook.xlsx.write(res);
+    res.end();
+    
+    console.log(`[Excel Generation] Excel file successfully generated and sent`);
+    
+  } catch (error) {
+    console.error('Error generating excel with precomputed progress data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate progress report',
+      error: error.message
+    });
+  }
 };

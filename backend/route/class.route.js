@@ -8,6 +8,7 @@ import {
     getAllClasses,
     downloadClassData,
     downloadClassDataWithProgress,
+    downloadClassDataWithPrecomputedProgress,
     getTeacherClasses
 } from '../controllers/class.controller.js';
 import authMiddleware from '../middelwares/auth.js';
@@ -24,6 +25,7 @@ router.delete('/:classId', authMiddleware, deleteClass);
 // Excel export routes
 router.get('/:classId/excel', downloadClassData);
 router.post('/:classId/excel-with-progress', downloadClassDataWithProgress);
+router.get('/:classId/excel-with-progress', downloadClassDataWithPrecomputedProgress);
 
 // Student-related routes
 router.get('/classes/:classId/students', getStudentByClass);
