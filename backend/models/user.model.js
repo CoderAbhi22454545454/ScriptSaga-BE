@@ -73,7 +73,9 @@ const userSchema = new mongoose.Schema({
       ref: 'User'
     },
     read: { type: Boolean, default: false }
-  }]
+  }],
+  resetPasswordToken: String,
+  resetPasswordExpiry: Date
 }, { timestamps: true });
 
 userSchema.index({ rollNo: 1, classId: 1 }, {

@@ -12,8 +12,8 @@ const router = express.Router();
 // Update student metrics
 router.post('/:userId/update', updateMetrics);
 
-// Get student metrics
-router.get('/:userId', getStudentMetrics);
+// Get all student metrics and top performers
+router.get('/student-metrics', getStudentMetrics);
 
 // Get comprehensive student progress report
 router.get('/:userId/report', getStudentProgressReport);

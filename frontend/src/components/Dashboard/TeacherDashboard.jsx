@@ -32,10 +32,44 @@ const TeacherDashboard = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await api.get(`/teacher/${user._id}/stats`);
-      setStats(response.data.stats);
+      // Get assigned classes to calculate all stats
+      const response = await api.get(`/class/teacher/${user._id}/classes`);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch classes');
+      }
+
+      const classes = response.data.classes || [];
+      
+      // Calculate stats from classes data
+      const totalStudents = classes.reduce((sum, cls) => {
+        return sum + (cls.totalStudents || 0);
+      }, 0);
+
+      const totalAssignments = classes.reduce((sum, cls) => {
+        return sum + (cls.totalAssignments || 0);
+      }, 0);
+
+      const activeAssignments = classes.reduce((sum, cls) => {
+        return sum + (cls.activeAssignments || 0);
+      }, 0);
+
+      // Calculate average completion rate (if available)
+      const totalCompletionRate = classes.reduce((sum, cls) => {
+        return sum + (cls.completionRate || 0);
+      }, 0);
+      const averageCompletionRate = classes.length > 0 ? Math.round(totalCompletionRate / classes.length) : 0;
+
+      setStats({
+        totalStudents,
+        totalAssignments,
+        upcomingAssignments: activeAssignments, // Using activeAssignments as upcoming
+        recentNotifications: [], // We'll handle notifications separately if needed
+        averageCompletionRate
+      });
     } catch (error) {
       console.error('Error fetching stats:', error);
+      toast.error('Failed to fetch dashboard statistics');
     }
   };
 
@@ -137,8 +171,8 @@ const TeacherDashboard = () => {
             <CardContent className="flex items-center p-6">
               <Bell className="h-8 w-8 text-orange-500 mr-4" />
               <div>
-                <p className="text-sm text-gray-600">Notifications</p>
-                <h3 className="text-2xl font-bold">{stats.recentNotifications.length}</h3>
+                <p className="text-sm text-gray-600">Avg. Completion Rate</p>
+                <h3 className="text-2xl font-bold">{stats.averageCompletionRate}%</h3>
               </div>
             </CardContent>
           </Card>
@@ -163,7 +197,7 @@ const TeacherDashboard = () => {
                   <CardContent>
                     <div className="space-y-2">
                       <p className="text-gray-600">Division: {cls.division}</p>
-                      <p className="text-gray-600">Students: {cls.students?.length || 0}</p>
+                      <p className="text-gray-600">Total Students: {cls.totalStudents || 0}</p>
                       <div className="flex justify-between items-center mt-4 text-sm">
                         <span className="text-blue-600">Active Assignments: {cls.activeAssignments || 0}</span>
                         <span className="text-green-600">Completion Rate: {cls.completionRate || 0}%</span>

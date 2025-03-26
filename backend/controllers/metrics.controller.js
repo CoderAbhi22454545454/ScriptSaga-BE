@@ -1,5 +1,7 @@
 import { StudentMetrics } from '../models/studentMetrics.model.js';
 import { User } from '../models/user.model.js';
+import { GithubData } from '../models/githubData.model.js';
+import { LeetCode } from '../models/leetcode.model.js';
 import mongoose from 'mongoose';
 import { calculateGitHubMetrics, calculateLeetCodeMetrics, updateStudentMetrics } from '../services/metrics.service.js';
 
@@ -61,33 +63,103 @@ const processLanguages = (repos) => {
 
 export const getStudentMetrics = async (req, res) => {
   try {
-    const { userId } = req.params;
+    // Get all students with GitHub data
+    const students = await User.find({ 
+      role: 'student',
+      githubID: { $exists: true, $ne: '' }
+    })
+    .select('firstName lastName githubID')
+    .lean();
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({
-        message: 'Invalid user ID format',
-        success: false
-      });
-    }
+    // Get GitHub data for all students
+    const githubData = await GithubData.find({
+      userId: { $in: students.map(s => s._id) }
+    }).lean();
 
-    const metrics = await StudentMetrics.findOne({ userId });
-    if (!metrics) {
-      return res.status(404).json({
-        message: 'No metrics found for this user',
-        success: false
-      });
-    }
+    // Create a map of userId to GitHub data
+    const githubDataMap = githubData.reduce((map, data) => {
+      map[data.userId.toString()] = data;
+      return map;
+    }, {});
 
-    res.status(200).json({
+    // Calculate total and active students
+    const totalStudents = students.length;
+    const activeStudents = students.filter(s => {
+      const data = githubDataMap[s._id.toString()];
+      return data && data.repositories?.length > 0;
+    }).length;
+
+    // Calculate platform engagement percentages
+    const platformEngagement = {
+      github: ((activeStudents / totalStudents) * 100).toFixed(1),
+      leetcode: "0.0" // Will be updated later
+    };
+
+    // Calculate top GitHub contributors
+    const topGitHubStudents = students
+      .map(student => {
+        const data = githubDataMap[student._id.toString()];
+        const totalCommits = data?.repositories?.reduce((sum, repo) => {
+          return sum + (repo.commitCount || 0);
+        }, 0) || 0;
+        
+        return {
+          _id: student._id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          totalCommits
+        };
+      })
+      .filter(student => student.totalCommits > 0)
+      .sort((a, b) => b.totalCommits - a.totalCommits)
+      .slice(0, 5);
+
+    // Get LeetCode data for all students
+    const leetcodeData = await LeetCode.find({
+      userId: { $in: students.map(s => s._id) }
+    }).lean();
+
+    // Create a map of userId to LeetCode data
+    const leetcodeDataMap = leetcodeData.reduce((map, data) => {
+      map[data.userId.toString()] = data;
+      return map;
+    }, {});
+
+    // Calculate top LeetCode performers
+    const topLeetCodeStudents = students
+      .map(student => {
+        const data = leetcodeDataMap[student._id.toString()];
+        return {
+          _id: student._id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          problemsSolved: data?.completeProfile?.solvedProblem || 0
+        };
+      })
+      .filter(student => student.problemsSolved > 0)
+      .sort((a, b) => b.problemsSolved - a.problemsSolved)
+      .slice(0, 5);
+
+    // Update LeetCode engagement percentage
+    const leetcodeActiveStudents = leetcodeData.length;
+    platformEngagement.leetcode = ((leetcodeActiveStudents / totalStudents) * 100).toFixed(1);
+
+    res.json({
       success: true,
-      metrics
+      metrics: {
+        totalStudents,
+        githubActiveStudents: activeStudents,
+        leetcodeActiveStudents,
+        platformEngagement,
+        topGitHubStudents,
+        topLeetCodeStudents
+      }
     });
-
   } catch (error) {
-    console.error('Metrics Fetch Error:', error);
+    console.error('Error in getStudentMetrics:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching metrics',
+      message: 'Error fetching student metrics',
       error: error.message
     });
   }

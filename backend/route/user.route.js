@@ -17,6 +17,8 @@ import {
     updateTeacher,
     deleteTeacher,
     getStudentsByClass,
+    forgotPassword,
+    resetPassword
 } from '../controllers/user.controller.js';
 import { bulkUploadStudentsJSON } from '../controllers/admin.controller.js';
 import authMiddelware from '../middelwares/auth.js';
@@ -27,6 +29,8 @@ const router = express.Router();
 router.post("/register", createUser);
 router.post("/login", loginUser);
 router.post("/logout", logout);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 router.get("/check-auth", checkAuth);
 
 // Student management routes (specific routes before parameter routes)

@@ -230,7 +230,7 @@ const AdminDashboard = () => {
                             <TableBody>
                                 {teachers.length > 0 ? (
                                     teachers.map((teacher) => (
-                                        <TableRow key={teacher._id} className="cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/admin/teacher/${teacher._id}`)}>
+                                        <TableRow key={teacher._id} className="">
                                             <TableCell className="font-medium">{teacher.firstName} {teacher.lastName}</TableCell>
                                             <TableCell>{teacher.email}</TableCell>
                                             <TableCell>

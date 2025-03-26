@@ -2,6 +2,8 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import './App.css';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
 import StudentList from './components/Dashboard/StudentList';
 import AdminDashboard from './components/Dashboard/AdminDashboard';
 import StudentDashboard from './components/Dashboard/StudentDashboard';
@@ -18,22 +20,31 @@ import TeacherDashboard from './components/Dashboard/TeacherDashboard';
 import TeacherManagement from './components/Dashboard/TeacherManagement';
 import TeacherClassView from './components/Dashboard/TeacherClassView';
 import GitHubLearningPage from './pages/student/GitHubLearningPage';
+
 const appRouter = createBrowserRouter([
   {
     path: '/',
     element: <PublicRoute />,
     children: [
       {
-        path: '',  // Add this empty path for root route
+        path: '',
         element: <Login />
       },
-      ,{
+      {
         path: 'login',
         element: <Login />,
       },
       {
         path: 'register',
         element: <Register />,
+      },
+      {
+        path: 'forgot-password',
+        element: <ForgotPassword />,
+      },
+      {
+        path: 'reset-password/:token',
+        element: <ResetPassword />,
       },
     ],
   },
@@ -110,6 +121,10 @@ const appRouter = createBrowserRouter([
       {
         path: 'settings/:id',
         element: <Settings />,
+      },
+      {
+        path: 'teacher/:teacherId',
+        element: <TeacherDashboard />,
       }
     ],
   },

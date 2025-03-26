@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "@/constants/constant";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 const StudentProgressMetrics = () => {
   const [metrics, setMetrics] = useState({
@@ -62,7 +63,11 @@ const StudentProgressMetrics = () => {
               {metrics.githubActiveStudents}
             </div>
             <p className="text-xs text-muted-foreground">
-              {((metrics.githubActiveStudents / metrics.totalStudents) * 100).toFixed(1)}% of total
+              {(
+                (metrics.githubActiveStudents / metrics.totalStudents) *
+                100
+              ).toFixed(1)}
+              % of total
             </p>
           </CardContent>
         </Card>
@@ -78,7 +83,11 @@ const StudentProgressMetrics = () => {
               {metrics.leetcodeActiveStudents}
             </div>
             <p className="text-xs text-muted-foreground">
-              {((metrics.leetcodeActiveStudents / metrics.totalStudents) * 100).toFixed(1)}% of total
+              {(
+                (metrics.leetcodeActiveStudents / metrics.totalStudents) *
+                100
+              ).toFixed(1)}
+              % of total
             </p>
           </CardContent>
         </Card>
@@ -93,22 +102,32 @@ const StudentProgressMetrics = () => {
           </CardHeader>
           <CardContent>
             {metrics.topLeetCodeStudents
-              ?.filter((student, index, self) => 
-                index === self.findIndex(s => s.firstName === student.firstName && s.lastName === student.lastName) &&
-                (student.problemsSolved > 0)
+              ?.filter(
+                (student, index, self) =>
+                  index ===
+                    self.findIndex(
+                      (s) =>
+                        s.firstName === student.firstName &&
+                        s.lastName === student.lastName
+                    ) && student.problemsSolved > 0
               )
               .map((student, index) => (
-                <div
+                <Link
+                  to={`/admin/student/${student._id}`}
+                  target="_blank"
                   key={`leetcode-${student._id}-${index}`}
-                  className="flex justify-between items-center py-2 border-b last:border-0"
+                  className="flex justify-between items-center py-2 border-b last:border-0 hover:bg-gray-100"
                 >
-                  <span className="text-sm">
-                    {index + 1}. {student.firstName} {student.lastName}
-                  </span>
-                  <span className="text-sm font-medium">
-                    {student.problemsSolved || 0} problems
-                  </span>
-                </div>
+                  <div className="flex justify-between items-center w-full">
+                  
+                    <span className="text-sm">
+                      {index + 1}. {student.firstName} {student.lastName}
+                    </span>
+                    <span className="text-sm font-medium">
+                      {student.problemsSolved || 0} problems
+                    </span>
+                  </div>
+                </Link>
               ))}
           </CardContent>
         </Card>
@@ -120,24 +139,29 @@ const StudentProgressMetrics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {Array.isArray(metrics.topGitHubStudents) && metrics.topGitHubStudents
-              .filter((student, index, self) => 
-                index === self.findIndex(s => s.firstName === student.firstName && s.lastName === student.lastName) &&
-                (student.totalCommits > 0)
-              )
-              .map((student, index) => (
-                <div
-                  key={`github-${student._id}-${index}`}
-                  className="flex justify-between items-center py-2 border-b last:border-0"
-                >
-                  <span className="text-sm">
-                    {index + 1}. {student.firstName} {student.lastName}
-                  </span>
-                  <span className="text-sm font-medium">
-                    {student.totalCommits || 0} commits
-                  </span>
-                </div>
-              ))}
+            {Array.isArray(metrics.topGitHubStudents) &&
+              metrics.topGitHubStudents
+                .filter(
+                  (student, index, self) =>
+                    index ===
+                    self.findIndex(
+                      (s) =>
+                        s.firstName === student.firstName &&
+                        s.lastName === student.lastName
+                    )
+                )
+                .map((student, index) => (
+                  <Link
+                    to={`/admin/student/${student._id}`}
+                    target="_blank"
+                    key={`github-${student._id}-${index}`}
+                    className="flex justify-between items-center py-2 border-b last:border-0 hover:bg-gray-100"
+                  >
+                    <span className="text-sm">
+                      {index + 1}. {student.firstName} {student.lastName}
+                    </span>
+                  </Link>
+                ))}
           </CardContent>
         </Card>
       </div>

@@ -5,6 +5,8 @@ import { Class } from '../models/class.model.js';
 import { GithubData } from '../models/githubData.model.js';
 import { LeetCode } from '../models/leetcode.model.js';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 
 // Create a user (admin or student)
 export const createUser = async (req, res) => {
@@ -699,6 +701,124 @@ export const getStudentsByClass = async (req, res) => {
       success: false,
       message: 'Error fetching students',
       error: error.message
+    });
+  }
+};
+
+// Forgot password functionality
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: 'Please provide an email address',
+        success: false,
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found with this email address',
+        success: false,
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = Date.now() + 3600000; // 1 hour from now
+
+    // Save reset token to user
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpiry = resetTokenExpiry;
+    await user.save();
+
+    // Create email transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    // Create reset URL
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    // Email content
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: `
+        <h1>Password Reset Request</h1>
+        <p>You requested a password reset. Click the link below to reset your password:</p>
+        <a href="${resetUrl}">Reset Password</a>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      `,
+    };
+
+    // Send email
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({
+      message: 'Password reset email sent successfully',
+      success: true,
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return res.status(500).json({
+      message: 'Error sending password reset email',
+      success: false,
+    });
+  }
+};
+
+// Reset password functionality
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        message: 'Please provide both token and new password',
+        success: false,
+      });
+    }
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: 'Invalid or expired reset token',
+        success: false,
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user password and clear reset token
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiry = undefined;
+    await user.save();
+
+    return res.status(200).json({
+      message: 'Password reset successfully',
+      success: true,
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({
+      message: 'Error resetting password',
+      success: false,
     });
   }
 };

@@ -162,6 +162,14 @@ const Login = () => {
                                     />
                                 </div>
                                 {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
+                                <div className="text-right mt-2">
+                                    <Link 
+                                        to="/forgot-password" 
+                                        className="text-sm text-indigo-600 hover:text-indigo-500"
+                                    >
+                                        Forgot Password?
+                                    </Link>
+                                </div>
                             </div>
 
                             <Button 
