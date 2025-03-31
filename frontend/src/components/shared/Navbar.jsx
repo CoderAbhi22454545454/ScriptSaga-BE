@@ -20,6 +20,7 @@ import {
   School,
   BookOpen,
   Users,
+  UserCircle,
   Github,
 } from "lucide-react";
 
@@ -43,7 +44,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { logout } from "@/redux/authSlice";
+import { logout } from "@/redux/authActions";
 import { useDispatch } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -370,35 +371,71 @@ export function Navbar({ children }) {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="overflow-hidden rounded-full"
-              >
-                <Avatar>
-                  <AvatarImage
-                    src={user?.avatar || "https://github.com/shadcn.png"}
-                    alt={user?.name || "User"}
-                  />
-                  <AvatarFallback>
-                    {user?.name?.charAt(0) || "?"}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
+              <div className="flex flex-col items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full p-2"
+                >
+                  {user?.role === "admin" ? (
+                    <Users2 className="h-5 w-5 text-indigo-600" />
+                  ) : user?.role === "teacher" ? (
+                    <School className="h-5 w-5 text-indigo-600" />
+                  ) : (
+                    <GraduationCap className="h-5 w-5 text-indigo-600" />
+                  )}
+                </Button>
+                <span className="text-xs text-muted-foreground capitalize">
+                  {user?.role}
+                </span>
+              </div>
             </DropdownMenuTrigger>
-            {/* <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user?.name || "User Name"}</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="font-normal py-4">
+                <div className="flex flex-col space-y-2">
+                  <p className="text-base font-medium leading-none">
+                    {user?.name || "User"}
+                  </p>
+                  <p className="text-sm leading-none text-muted-foreground">
+                    {user?.email}
+                  </p>
+                  <p className="text-sm leading-none text-muted-foreground capitalize">
+                    {user?.role}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Support</DropdownMenuItem>
+              {user?.role === "admin" && (
+                <DropdownMenuItem asChild className="py-3">
+                  <Link to={`/admin/settings/${user._id}`} className="flex items-center">
+                    <Settings className="mr-3 h-5 w-5" />
+                    <span className="text-base">Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {user?.role === "teacher" && (
+                <DropdownMenuItem asChild className="py-3">
+                  <Link to={`/teacher/settings/${user._id}`} className="flex items-center">
+                    <Settings className="mr-3 h-5 w-5" />
+                    <span className="text-base">Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {user?.role === "student" && (
+                <DropdownMenuItem asChild className="py-3">
+                  <Link to={`/student/settings/${user._id}`} className="flex items-center">
+                    <Settings className="mr-3 h-5 w-5" />
+                    <span className="text-base">Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Logout</DropdownMenuItem>
-            </DropdownMenuContent> */}
+              <DropdownMenuItem onClick={handleLogout} className="flex items-center text-red-600 py-3">
+                <LogOut className="mr-3 h-5 w-5" />
+                <span className="text-base">Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
           </DropdownMenu>
-          <button onClick={handleLogout} className="flex items-center gap-2">
-            <LogOut className="h-5 w-5" />
-            <span>Logout</span>
-          </button>
         </header>
         <main className="p-4 pl-40 bg-transparent">{children}</main>
       </div>

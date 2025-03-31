@@ -1,6 +1,5 @@
 // authSlice.js
 import { createSlice } from "@reduxjs/toolkit";
-import api from "@/constants/constant";
 import { PURGE } from "redux-persist";
 
 const authSlice = createSlice({
@@ -33,21 +32,3 @@ const authSlice = createSlice({
 
 export const { setLoading, setUser, logoutUser } = authSlice.actions;
 export default authSlice.reducer;
-
-export const logout = () => async (dispatch) => {
-    try {
-        await api.post("/user/logout");
-        
-        // Clear localStorage items
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        
-        // Dispatch the logout action to update Redux state
-        dispatch(logoutUser());
-        
-        // Redirect to login page
-        window.location.href = "/login";
-    } catch (error) {
-        console.error("Logout error:", error);
-    }
-};

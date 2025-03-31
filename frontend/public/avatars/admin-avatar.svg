@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="20" cy="20" r="20" fill="#F3F4F6"/>
+  <!-- User Head -->
+  <circle cx="20" cy="15" r="5" fill="#4F46E5"/>
+  <!-- User Body -->
+  <path d="M10 35C10 28.3726 14.4772 23 20 23C25.5228 23 30 28.3726 30 35" stroke="#4F46E5" stroke-width="1.5"/>
+  <!-- Admin Badge -->
+  <circle cx="25" cy="12" r="3" fill="#4F46E5"/>
+  <path d="M23 10L25 12L27 10" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg> 

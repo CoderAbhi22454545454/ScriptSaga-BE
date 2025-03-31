@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="writerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7C3AED"/>
+      <stop offset="100%" style="stop-color:#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <circle cx="20" cy="20" r="20" fill="url(#writerGrad)"/>
+  <!-- User Head -->
+  <circle cx="20" cy="15" r="5" fill="white"/>
+  <!-- User Body -->
+  <path d="M10 35C10 28.3726 14.4772 23 20 23C25.5228 23 30 28.3726 30 35" stroke="white" stroke-width="1.5"/>
+  <!-- Pen Badge -->
+  <path d="M25 10L28 13" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M26 11L29 8" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+</svg> 
