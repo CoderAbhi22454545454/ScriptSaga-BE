@@ -14,7 +14,7 @@ import api from "@/constants/constant";
 import { toast } from "sonner";
 import CalHeatMap from "cal-heatmap";
 import "cal-heatmap/cal-heatmap.css";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, GitCommit, Star, Trophy, Code, Target, TrendingUp, Brain, Database, Globe, Server, BookOpen, ArrowRight } from "lucide-react";
 import DetailedStudentProgress from "./DetailedStudent";
 import {
   LineChart,
@@ -935,6 +935,75 @@ const StudentDetailGit = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
+                <TrendingUp className="h-6 w-6" />
+                Progress Timeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <ProgressTimeline 
+                  studentRepos={studentRepos} 
+                  studentLeetCode={studentLeetCode} 
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <Brain className="h-6 w-6" />
+                Skill Assessment
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <SkillAssessment 
+                  studentRepos={studentRepos} 
+                  studentLeetCode={studentLeetCode} 
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <BookOpen className="h-6 w-6" />
+                Learning Path Recommendations
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <LearningPathRecommendations 
+                  studentRepos={studentRepos} 
+                  studentLeetCode={studentLeetCode} 
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -1531,6 +1600,445 @@ const createDefaultComparisonData = () => {
       }
     }
   };
+};
+
+const ProgressTimeline = ({ studentRepos, studentLeetCode }) => {
+  const milestones = [];
+  
+  // Add GitHub milestones
+  if (studentRepos.length > 0) {
+    const firstCommit = new Date(Math.min(...studentRepos.flatMap(repo => 
+      repo.commits.map(commit => new Date(commit.date))
+    )));
+    
+    milestones.push({
+      date: firstCommit,
+      title: "First GitHub Commit",
+      description: "Started contributing to repositories",
+      icon: <GitCommit className="h-5 w-5" />,
+      type: "github"
+    });
+
+    const firstStar = studentRepos.find(repo => repo.stargazers_count > 0);
+    if (firstStar) {
+      milestones.push({
+        date: new Date(firstStar.created_at),
+        title: "First Starred Repository",
+        description: "Received first star on a repository",
+        icon: <Star className="h-5 w-5" />,
+        type: "github"
+      });
+    }
+  }
+
+  // Add LeetCode milestones
+  if (studentLeetCode?.completeProfile) {
+    const { easySolved, mediumSolved, hardSolved } = studentLeetCode.completeProfile;
+    
+    if (easySolved > 0) {
+      milestones.push({
+        date: new Date(), // We don't have historical data for this
+        title: "First Easy Problem Solved",
+        description: `Solved ${easySolved} easy problems`,
+        icon: <Code className="h-5 w-5" />,
+        type: "leetcode"
+      });
+    }
+
+    if (mediumSolved > 0) {
+      milestones.push({
+        date: new Date(),
+        title: "First Medium Problem Solved",
+        description: `Solved ${mediumSolved} medium problems`,
+        icon: <Target className="h-5 w-5" />,
+        type: "leetcode"
+      });
+    }
+
+    if (hardSolved > 0) {
+      milestones.push({
+        date: new Date(),
+        title: "First Hard Problem Solved",
+        description: `Solved ${hardSolved} hard problems`,
+        icon: <Trophy className="h-5 w-5" />,
+        type: "leetcode"
+      });
+    }
+  }
+
+  // Sort milestones by date
+  milestones.sort((a, b) => b.date - a.date);
+
+  return (
+    <div className="relative h-[400px] overflow-y-auto pr-4">
+      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+      {milestones.map((milestone, index) => (
+        <div key={index} className="relative pl-12 pb-8 last:pb-0">
+          <div className="absolute left-0 w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-4 border-blue-500 flex items-center justify-center">
+            {milestone.icon}
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">{milestone.title}</h3>
+              <Badge variant={milestone.type === "github" ? "default" : "secondary"}>
+                {milestone.type === "github" ? "GitHub" : "LeetCode"}
+              </Badge>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">{milestone.description}</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {milestone.date.toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+      ))}
+      {milestones.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <p>No milestones yet. Start contributing to see your progress!</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SkillAssessment = ({ studentRepos, studentLeetCode }) => {
+  const calculateSkillLevel = (metrics) => {
+    const {
+      commits,
+      activeDays,
+      problemSolved,
+      problemDifficulty,
+      repoCount,
+      starCount
+    } = metrics;
+
+    // Weighted scoring system
+    const commitScore = Math.min(commits / 200, 1) * 0.2; // 20% weight
+    const activityScore = Math.min(activeDays / 30, 1) * 0.2; // 20% weight
+    const problemScore = Math.min(problemSolved / 100, 1) * 0.3; // 30% weight
+    const difficultyScore = Math.min(problemDifficulty / 50, 1) * 0.2; // 20% weight
+    const repoScore = Math.min(repoCount / 10, 1) * 0.05; // 5% weight
+    const starScore = Math.min(starCount / 20, 1) * 0.05; // 5% weight
+
+    return Math.round((commitScore + activityScore + problemScore + difficultyScore + repoScore + starScore) * 100);
+  };
+
+  const getSkillColor = (level) => {
+    if (level >= 80) return "text-green-500";
+    if (level >= 60) return "text-blue-500";
+    if (level >= 40) return "text-yellow-500";
+    return "text-red-500";
+  };
+
+  const getActivityLevel = (activeDays) => {
+    if (activeDays >= 25) return "Very Active";
+    if (activeDays >= 15) return "Active";
+    if (activeDays >= 5) return "Moderate";
+    return "Inactive";
+  };
+
+  // Calculate GitHub metrics
+  const githubMetrics = {
+    commits: studentRepos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
+    activeDays: new Set(studentRepos.flatMap(repo => 
+      repo.commits?.map(commit => new Date(commit.date).toISOString().split('T')[0])
+    )).size,
+    repoCount: studentRepos.length,
+    starCount: studentRepos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0)
+  };
+
+  // Calculate LeetCode metrics
+  const leetCodeMetrics = {
+    problemSolved: (studentLeetCode?.completeProfile?.easySolved || 0) +
+                  (studentLeetCode?.completeProfile?.mediumSolved || 0) +
+                  (studentLeetCode?.completeProfile?.hardSolved || 0),
+    problemDifficulty: (studentLeetCode?.completeProfile?.easySolved || 0) * 1 +
+                      (studentLeetCode?.completeProfile?.mediumSolved || 0) * 2 +
+                      (studentLeetCode?.completeProfile?.hardSolved || 0) * 3
+  };
+
+  const skills = [
+    {
+      name: "Frontend Development",
+      icon: <Globe className="h-5 w-5" />,
+      level: calculateSkillLevel({
+        ...githubMetrics,
+        ...leetCodeMetrics,
+        commits: studentRepos.filter(repo => 
+          repo.language?.toLowerCase().includes('javascript') || 
+          repo.language?.toLowerCase().includes('typescript') ||
+          repo.language?.toLowerCase().includes('html') ||
+          repo.language?.toLowerCase().includes('css')
+        ).reduce((sum, repo) => sum + (repo.commits?.length || 0), 0)
+      }),
+      details: {
+        commits: studentRepos.filter(repo => 
+          repo.language?.toLowerCase().includes('javascript') || 
+          repo.language?.toLowerCase().includes('typescript') ||
+          repo.language?.toLowerCase().includes('html') ||
+          repo.language?.toLowerCase().includes('css')
+        ).reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
+        repos: studentRepos.filter(repo => 
+          repo.language?.toLowerCase().includes('javascript') || 
+          repo.language?.toLowerCase().includes('typescript') ||
+          repo.language?.toLowerCase().includes('html') ||
+          repo.language?.toLowerCase().includes('css')
+        ).length,
+        activity: getActivityLevel(githubMetrics.activeDays)
+      }
+    },
+    {
+      name: "Backend Development",
+      icon: <Server className="h-5 w-5" />,
+      level: calculateSkillLevel({
+        ...githubMetrics,
+        ...leetCodeMetrics,
+        commits: studentRepos.filter(repo => 
+          repo.language?.toLowerCase().includes('python') || 
+          repo.language?.toLowerCase().includes('java') ||
+          repo.language?.toLowerCase().includes('go') ||
+          repo.language?.toLowerCase().includes('php')
+        ).reduce((sum, repo) => sum + (repo.commits?.length || 0), 0)
+      }),
+      details: {
+        commits: studentRepos.filter(repo => 
+          repo.language?.toLowerCase().includes('python') || 
+          repo.language?.toLowerCase().includes('java') ||
+          repo.language?.toLowerCase().includes('go') ||
+          repo.language?.toLowerCase().includes('php')
+        ).reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
+        repos: studentRepos.filter(repo => 
+          repo.language?.toLowerCase().includes('python') || 
+          repo.language?.toLowerCase().includes('java') ||
+          repo.language?.toLowerCase().includes('go') ||
+          repo.language?.toLowerCase().includes('php')
+        ).length,
+        activity: getActivityLevel(githubMetrics.activeDays)
+      }
+    },
+    {
+      name: "Problem Solving",
+      icon: <Brain className="h-5 w-5" />,
+      level: calculateSkillLevel({
+        ...githubMetrics,
+        ...leetCodeMetrics,
+        problemSolved: leetCodeMetrics.problemSolved * 1.5, // Give more weight to LeetCode
+        problemDifficulty: leetCodeMetrics.problemDifficulty * 1.5
+      }),
+      details: {
+        totalProblems: leetCodeMetrics.problemSolved,
+        difficulty: {
+          easy: studentLeetCode?.completeProfile?.easySolved || 0,
+          medium: studentLeetCode?.completeProfile?.mediumSolved || 0,
+          hard: studentLeetCode?.completeProfile?.hardSolved || 0
+        },
+        activity: getActivityLevel(githubMetrics.activeDays)
+      }
+    },
+    {
+      name: "Overall Progress",
+      icon: <TrendingUp className="h-5 w-5" />,
+      level: calculateSkillLevel({
+        ...githubMetrics,
+        ...leetCodeMetrics
+      }),
+      details: {
+        totalCommits: githubMetrics.commits,
+        activeDays: githubMetrics.activeDays,
+        totalRepos: githubMetrics.repoCount,
+        totalStars: githubMetrics.starCount,
+        totalProblems: leetCodeMetrics.problemSolved,
+        activity: getActivityLevel(githubMetrics.activeDays)
+      }
+    }
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {skills.map((skill, index) => (
+        <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            {skill.icon}
+            <h3 className="font-semibold text-lg">{skill.name}</h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Skill Level</span>
+              <span className={`font-bold ${getSkillColor(skill.level)}`}>
+                {skill.level}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+              <div
+                className={`h-2.5 rounded-full transition-all duration-500 ${
+                  getSkillColor(skill.level).replace('text-', 'bg-')
+                }`}
+                style={{ width: `${skill.level}%` }}
+              ></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              {skill.name === "Problem Solving" ? (
+                <>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Total Problems</p>
+                    <p className="font-semibold">{skill.details.totalProblems}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Activity Level</p>
+                    <p className="font-semibold">{skill.details.activity}</p>
+                  </div>
+                </>
+              ) : skill.name === "Overall Progress" ? (
+                <>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Total Commits</p>
+                    <p className="font-semibold">{skill.details.totalCommits}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Problems Solved</p>
+                    <p className="font-semibold">{skill.details.totalProblems}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Commits</p>
+                    <p className="font-semibold">{skill.details.commits}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Repositories</p>
+                    <p className="font-semibold">{skill.details.repos}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const LearningPathRecommendations = ({ studentRepos, studentLeetCode }) => {
+  // Calculate language distribution
+  const languages = studentRepos.reduce((acc, repo) => {
+    if (repo.language) {
+      acc[repo.language] = (acc[repo.language] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  // Get recommended domains using the same logic as DomainRecommendations
+  const recommendedDomains = getDomainSuggestions(languages);
+
+  // Define learning paths based on domains
+  const getLearningPath = (domain) => {
+    const paths = {
+      'Web Development': {
+        title: 'Web Development',
+        description: 'Master modern web development technologies and practices',
+        priority: 'High',
+        steps: [
+          'Learn HTML5 and CSS3 fundamentals',
+          'Master JavaScript and modern frameworks',
+          'Understand responsive design principles',
+          'Practice building full-stack applications'
+        ]
+      },
+      'Frontend Development': {
+        title: 'Frontend Development',
+        description: 'Become proficient in frontend technologies and frameworks',
+        priority: 'High',
+        steps: [
+          'Deep dive into JavaScript/TypeScript',
+          'Learn React/Vue/Angular frameworks',
+          'Master CSS preprocessors and frameworks',
+          'Practice UI/UX design principles'
+        ]
+      },
+      'UI Development': {
+        title: 'UI Development',
+        description: 'Focus on creating beautiful and responsive user interfaces',
+        priority: 'Medium',
+        steps: [
+          'Master CSS Grid and Flexbox',
+          'Learn UI component design patterns',
+          'Practice responsive design',
+          'Study accessibility best practices'
+        ]
+      },
+      'Backend Development': {
+        title: 'Backend Development',
+        description: 'Build robust and scalable server-side applications',
+        priority: 'Medium',
+        steps: [
+          'Learn server-side programming',
+          'Master database management',
+          'Understand API design principles',
+          'Practice building RESTful services'
+        ]
+      },
+      'Full Stack Development': {
+        title: 'Full Stack Development',
+        description: 'Become proficient in both frontend and backend development',
+        priority: 'High',
+        steps: [
+          'Master frontend and backend technologies',
+          'Learn database design and management',
+          'Understand system architecture',
+          'Practice building complete applications'
+        ]
+      }
+    };
+
+    return paths[domain] || {
+      title: domain,
+      description: `Learn about ${domain.toLowerCase()}`,
+      priority: 'Medium',
+      steps: [
+        'Research the fundamentals',
+        'Practice core concepts',
+        'Build related projects',
+        'Study best practices'
+      ]
+    };
+  };
+
+  // Get learning paths for recommended domains
+  const learningPaths = recommendedDomains.map(domain => getLearningPath(domain));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl flex items-center gap-2">
+          <BookOpen className="w-6 h-6" />
+          Learning Path Recommendations
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          {learningPaths.map((path, index) => (
+            <div key={index} className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-lg">{path.title}</h3>
+                <Badge variant={path.priority === 'High' ? 'default' : 'secondary'}>
+                  {path.priority} Priority
+                </Badge>
+              </div>
+              <p className="text-gray-600 mb-4">{path.description}</p>
+              <div className="space-y-2">
+                {path.steps.map((step, stepIndex) => (
+                  <div key={stepIndex} className="flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm">{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 

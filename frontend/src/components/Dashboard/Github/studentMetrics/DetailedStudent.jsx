@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
+import { getDomainSuggestions } from '@/utils/domainSuggestions';
 
 // Add these functions before the DetailedStudentProgress component
 
@@ -84,39 +85,6 @@ const OverallProgressBadge = ({ githubScore, leetCodeScore }) => {
       {status.label}
     </Badge>
   );
-};
-
-const getDomainSuggestions = (languages) => {
-  const domainMap = {
-    JavaScript: ['Web Development', 'Full Stack Development', 'Frontend Development'],
-    TypeScript: ['Web Development', 'Enterprise Applications', 'Full Stack Development'],
-    Python: ['Data Science', 'Machine Learning', 'Backend Development', 'AI Development'],
-    Java: ['Enterprise Development', 'Android Development', 'Backend Development'],
-    Kotlin: ['Android Development', 'Mobile Development'],
-    Swift: ['iOS Development', 'Mobile Development'],
-    PHP: ['Web Development', 'Backend Development'],
-    'C#': ['Game Development', '.NET Development', 'Enterprise Applications'],
-    'C++': ['Game Development', 'Systems Programming', 'Performance-Critical Applications'],
-    Go: ['Cloud Development', 'Backend Development', 'Systems Programming'],
-    Rust: ['Systems Programming', 'WebAssembly Development', 'Performance-Critical Applications'],
-    Ruby: ['Web Development', 'Backend Development'],
-    Dart: ['Mobile Development', 'Cross-platform Development'],
-    Flutter: ['Mobile Development', 'Cross-platform Development'],
-    React: ['Frontend Development', 'Web Development'],
-  };
-
-  // Get the most used languages (top 3)
-  const sortedLanguages = Object.entries(languages)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3);
-
-  const suggestions = new Set();
-  sortedLanguages.forEach(([lang]) => {
-    const domains = domainMap[lang] || [];
-    domains.forEach(domain => suggestions.add(domain));
-  });
-
-  return Array.from(suggestions).slice(0, 3);
 };
 
 const getImprovementSuggestions = (metrics) => {
@@ -497,4 +465,4 @@ const ScoreCard = ({ title, score, details }) => (
 export default DetailedStudentProgress;
 
 // Add these exports at the end of the file
-export { getImprovementSuggestions, getDomainSuggestions };
+export { getImprovementSuggestions };

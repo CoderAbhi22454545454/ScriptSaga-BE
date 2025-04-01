@@ -48,11 +48,14 @@ export const getLCodeUserInfo = async (req, res) => {
             
             if (leetcodeData) {
                 // Update existing record
-                leetcodeData.set({
-                    ...freshData,
-                    lastUpdated: Date.now()
-                });
-                await leetcodeData.save();
+                leetcodeData = await LeetCode.findOneAndUpdate(
+                    { _id: leetcodeData._id },
+                    {
+                        ...freshData,
+                        lastUpdated: Date.now()
+                    },
+                    { new: true }
+                );
             } else {
                 // Create new record
                 leetcodeData = await LeetCode.create({
