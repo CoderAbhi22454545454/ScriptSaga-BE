@@ -23,6 +23,42 @@ const githubApi = axios.create({
 const MAX_PER_PAGE = 100; // GitHub's maximum items per page
 const MAX_CONCURRENT_REQUESTS = 10; // Increased batch size for better performance
 
+const handleGitHubError = async (error, userId, githubId) => {
+  console.error('GitHub API Error:', error);
+  
+  // Create empty data structure
+  const emptyData = {
+    userId,
+    githubId,
+    repos: [],
+    summary: {
+      totalRepos: 0,
+      totalCommits: 0,
+      activeRepos: 0,
+      totalStars: 0,
+      totalForks: 0
+    },
+    lastUpdated: Date.now(),
+    error: {
+      message: error.message || 'Unknown error',
+      status: error.response?.status || 500,
+      type: error.response?.status === 404 ? 'USER_NOT_FOUND' : 'API_ERROR'
+    }
+  };
+
+  try {
+    // Update or create record with empty data
+    return await GithubData.findOneAndUpdate(
+      { userId },
+      emptyData,
+      { upsert: true, new: true }
+    );
+  } catch (dbError) {
+    console.error('Database error while handling GitHub error:', dbError);
+    return null;
+  }
+};
+
 export const getStudentReposWithCommits = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -54,7 +90,6 @@ export const getStudentReposWithCommits = async (req, res) => {
 
     // If we have cached data and it's recent, use it
     if (githubData && !needsUpdate) {
-      // Paginate the cached repos
       const startIndex = (page - 1) * limit;
       const endIndex = page * limit;
       const paginatedRepos = githubData.repos.slice(startIndex, endIndex);
@@ -72,13 +107,11 @@ export const getStudentReposWithCommits = async (req, res) => {
       });
     }
 
-    // If we need to update, fetch from GitHub API
     try {
       // Get user profile first to get accurate repo count
       const userProfileResponse = await githubApi.get(`/users/${user.githubID}`);
       const totalRepos = userProfileResponse.data.public_repos;
       
-      // If user has no repos, create minimal record
       if (totalRepos === 0) {
         const emptyData = {
           userId,
@@ -183,23 +216,10 @@ export const getStudentReposWithCommits = async (req, res) => {
         fromCache: false
       });
     } catch (error) {
-      console.error('GitHub API Error:', error);
+      // Handle GitHub API errors
+      githubData = await handleGitHubError(error, userId, user.githubID);
       
-      // Handle 404 Not Found error specifically
-      if (error.response?.status === 404) {
-        const emptyData = {
-          userId,
-          githubId: user.githubID,
-          repos: [],
-          lastUpdated: Date.now()
-        };
-        
-        githubData = await GithubData.findOneAndUpdate(
-          { userId },
-          emptyData,
-          { upsert: true, new: true }
-        );
-        
+      if (githubData) {
         return res.status(200).json({
           success: true,
           repos: [],
@@ -209,35 +229,22 @@ export const getStudentReposWithCommits = async (req, res) => {
             totalRepos: 0,
             itemsPerPage: limit
           },
-          message: 'GitHub user not found',
+          message: error.response?.status === 404 ? 'GitHub user not found' : 'GitHub API error',
+          error: {
+            type: error.response?.status === 404 ? 'USER_NOT_FOUND' : 'API_ERROR',
+            message: error.message
+          },
           fromCache: false
         });
       }
       
-      // If we have existing data, return it despite the error
-      if (githubData && githubData.repos) {
-        const startIndex = (page - 1) * limit;
-        const endIndex = page * limit;
-        const paginatedRepos = githubData.repos.slice(startIndex, endIndex);
-        
-        return res.status(200).json({
-          success: true,
-          repos: paginatedRepos,
-          pagination: {
-            currentPage: page,
-            totalPages: Math.ceil(githubData.repos.length / limit),
-            totalRepos: githubData.repos.length,
-            itemsPerPage: limit
-          },
-          message: "Using cached data due to API error",
-          fromCache: true
-        });
-      }
-      
       return res.status(503).json({
-        message: `GitHub API Error: ${error.message}`,
+        message: 'GitHub API Error',
         success: false,
-        error: error.message
+        error: {
+          type: 'API_ERROR',
+          message: error.message
+        }
       });
     }
   } catch (error) {
@@ -245,7 +252,10 @@ export const getStudentReposWithCommits = async (req, res) => {
     res.status(500).json({
       message: "Internal server error",
       success: false,
-      error: error.message
+      error: {
+        type: 'SERVER_ERROR',
+        message: error.message
+      }
     });
   }
 };
@@ -315,26 +325,29 @@ export const getStudentGitHubSummary = async (req, res) => {
     const forceRefresh = req.query.refresh === 'true';
     
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: 'Invalid user ID format', success: false });
+      return res.status(400).json({ 
+        message: 'Invalid user ID format', 
+        success: false 
+      });
     }
 
     const user = await User.findById(userId);
     if (!user?.githubID) {
-      return res.status(404).json({ message: "User not found or GitHub ID not set", success: false });
+      return res.status(404).json({ 
+        message: "User not found or GitHub ID not set", 
+        success: false 
+      });
     }
 
     console.log(`Fetching GitHub summary for user: ${user.githubID}`);
 
-    // Check if we have cached summary data
     let githubData = await GithubData.findOne({ userId });
     const needsUpdate = forceRefresh || 
                        !githubData || 
                        !githubData.summary ||
                        Date.now() - githubData.lastUpdated > 24 * 60 * 60 * 1000;
 
-    // If we have cached data and it's recent, return it immediately
     if (githubData && !needsUpdate && githubData.summary.totalRepos > 0) {
-      console.log(`Returning cached GitHub summary for ${user.githubID}`);
       return res.status(200).json({
         success: true,
         summary: githubData.summary || {},
@@ -342,7 +355,6 @@ export const getStudentGitHubSummary = async (req, res) => {
       });
     }
 
-    // If we need to update, fetch from GitHub API
     try {
       console.log(`Fetching fresh GitHub data for ${user.githubID}`);
       
@@ -516,111 +528,40 @@ export const getStudentGitHubSummary = async (req, res) => {
         fromCache: false
       });
     } catch (error) {
-      console.error('GitHub API Error:', error.message);
+      // Handle GitHub API errors
+      githubData = await handleGitHubError(error, userId, user.githubID);
       
-      // Enhanced error handling for GitHub API errors
-      // Handle 404 Not Found error specifically
-      if (error.response?.status === 404) {
-        console.log(`GitHub user not found: ${user.githubID}`);
-        const emptySummary = {
-          totalRepos: 0,
-          totalCommits: 0,
-          activeRepos: 0,
-          totalStars: 0,
-          totalForks: 0,
-          error: 'GitHub user not found'
-        };
-        
-        try {
-          // Update or create record with empty data
-          githubData = await GithubData.findOneAndUpdate(
-            { userId },
-            { 
-              $set: {
-                userId,
-                githubId: user.githubID,
-                summary: emptySummary,
-                lastUpdated: Date.now()
-              }
-            },
-            { upsert: true, new: true }
-          );
-          
-          return res.status(200).json({
-            success: true,
-            summary: emptySummary,
-            message: 'GitHub user not found',
-            fromCache: false
-          });
-        } catch (dbError) {
-          console.error('Database error while handling 404:', dbError);
-          // Continue to fallback response
-        }
-      }
-      
-      // If we have existing data, return it despite the error
-      if (githubData && githubData.summary) {
+      if (githubData) {
         return res.status(200).json({
           success: true,
-          summary: githubData.summary,
-          message: "Using cached data due to API error",
-          fromCache: true
+          summary: githubData.summary || {},
+          message: error.response?.status === 404 ? 'GitHub user not found' : 'GitHub API error',
+          error: {
+            type: error.response?.status === 404 ? 'USER_NOT_FOUND' : 'API_ERROR',
+            message: error.message
+          },
+          fromCache: false
         });
       }
       
-      // Create default empty summary as last resort
-      const fallbackSummary = {
-        totalRepos: 0,
-        totalCommits: 0,
-        activeRepos: 0,
-        totalStars: 0,
-        totalForks: 0,
-        error: `GitHub API Error: ${error.message || 'Unknown error'}`
-      };
-      
-      try {
-        // Create a fallback record
-        await GithubData.findOneAndUpdate(
-          { userId },
-          { 
-            $set: {
-              userId,
-              githubId: user.githubID,
-              summary: fallbackSummary,
-              lastUpdated: Date.now()
-            }
-          },
-          { upsert: true, new: true }
-        );
-      } catch (dbError) {
-        console.error('Database error while creating fallback record:', dbError);
-      }
-      
-      return res.status(200).json({
-        success: true,
-        summary: fallbackSummary,
-        message: `GitHub API Error: ${error.message || 'Unknown error'}`,
-        fromCache: false
+      return res.status(503).json({
+        message: 'GitHub API Error',
+        success: false,
+        error: {
+          type: 'API_ERROR',
+          message: error.message
+        }
       });
     }
   } catch (error) {
     console.error("Server Error:", error);
-    
-    // Create a minimal response even in case of server error
-    const errorSummary = {
-      totalRepos: 0,
-      totalCommits: 0,
-      activeRepos: 0,
-      totalStars: 0,
-      totalForks: 0,
-      error: 'Server error'
-    };
-    
-    return res.status(200).json({
-      success: true,
-      summary: errorSummary,
-      message: "Internal server error, using fallback data",
-      error: error.message
+    res.status(500).json({
+      message: "Internal server error",
+      success: false,
+      error: {
+        type: 'SERVER_ERROR',
+        message: error.message
+      }
     });
   }
 };

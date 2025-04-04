@@ -314,6 +314,7 @@ export function Navbar({ children }) {
             </SheetContent>
           </Sheet>
 
+          {user?.role === "admin" || user?.role === "teacher" && (
             <div className="relative ml-auto flex-1 md:grow-0">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground bg-gray" />
             <Input
@@ -324,6 +325,7 @@ export function Navbar({ children }) {
               className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
             />
           </div>
+          )}
 
           {searchTerm.trim().length > 0 && (
             <div className="absolute top-14 right-32 w-96 bg-white border border-gray-200 mt-1 rounded-lg  max-h-60 overflow-y-auto z-50">

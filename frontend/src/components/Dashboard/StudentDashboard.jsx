@@ -111,6 +111,35 @@ const calculateImpactScore = (metrics) => {
   return Math.min(starsScore + forksScore, 100);
 };
 
+const calculateSkillLevel = (metrics) => {
+  const activityScore = calculateActivityScore(metrics);
+  const qualityScore = calculateCodeQualityScore(metrics);
+  const impactScore = calculateImpactScore(metrics);
+  
+  const overallScore = (activityScore + qualityScore + impactScore) / 3;
+  
+  if (overallScore >= 80) return 'Advanced';
+  if (overallScore >= 60) return 'Intermediate';
+  if (overallScore >= 40) return 'Beginner';
+  return 'Novice';
+};
+
+const getSkillColor = (level) => {
+  switch (level) {
+    case 'Advanced': return 'bg-green-100 text-green-800';
+    case 'Intermediate': return 'bg-blue-100 text-blue-800';
+    case 'Beginner': return 'bg-yellow-100 text-yellow-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getActivityLevel = (activeDays) => {
+  if (activeDays >= 20) return 'Very Active';
+  if (activeDays >= 10) return 'Active';
+  if (activeDays >= 5) return 'Moderate';
+  return 'Inactive';
+};
+
 const calculateGitHubMetrics = (repos, summary = null) => {
   const now = new Date();
   const ninetyDaysAgo = new Date(now.setDate(now.getDate() - 90));
@@ -268,6 +297,101 @@ const getAssignmentStatus = (dueDate, submitted) => {
   };
 };
 
+const SkillAssessment = ({ studentRepos, studentLeetCode }) => {
+  const metrics = calculateGitHubMetrics(studentRepos);
+  const skillLevel = calculateSkillLevel(metrics.raw);
+  const activityLevel = getActivityLevel(metrics.raw.recentActivity.activeDays.size);
+  
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="text-2xl flex items-center gap-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="lucide lucide-award"
+          >
+            <circle cx="12" cy="8" r="6" />
+            <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+          </svg>
+          Skill Assessment
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium mb-2">GitHub Skills</h3>
+              <div className={`inline-block px-3 py-1 rounded-full ${getSkillColor(skillLevel)}`}>
+                {skillLevel}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-medium mb-2">Activity Level</h3>
+              <div className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800">
+                {activityLevel}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-medium mb-2">Recent Activity</h3>
+              <ProgressMetric
+                label="Commits in last 90 days"
+                value={metrics.raw.recentActivity.commits}
+                total={150}
+              />
+              <ProgressMetric
+                label="Active Days"
+                value={metrics.raw.recentActivity.activeDays.size}
+                total={90}
+              />
+              <ProgressMetric
+                label="Active Repositories"
+                value={metrics.raw.recentActivity.repositories.size}
+                total={10}
+              />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium mb-2">Code Quality</h3>
+              <ProgressMetric
+                label="Commit Frequency"
+                value={metrics.raw.recentActivity.commits}
+                total={150}
+              />
+              <ProgressMetric
+                label="Repository Diversity"
+                value={metrics.raw.recentActivity.repositories.size}
+                total={10}
+              />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium mb-2">Impact</h3>
+              <ProgressMetric
+                label="Stars Received"
+                value={metrics.raw.impact.totalStars}
+                total={50}
+              />
+              <ProgressMetric
+                label="Forks Received"
+                value={metrics.raw.impact.totalForks}
+                total={20}
+              />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const StudentDashboard = () => {
   const user = useSelector((state) => state.auth.user);
   const isMountedRef = useRef(true);
@@ -306,6 +430,12 @@ const StudentDashboard = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const navigate = useNavigate();
   const [solutionUrls, setSolutionUrls] = useState({});
+  const [githubError, setGithubError] = useState(null);
+  const [isGithubConnected, setIsGithubConnected] = useState(false);
+  const [isEditingGithubId, setIsEditingGithubId] = useState(false);
+  const [newGithubId, setNewGithubId] = useState("");
+  const [isUpdatingGithubId, setIsUpdatingGithubId] = useState(false);
+  const [isInvalidGithubId, setIsInvalidGithubId] = useState(false);
 
   const findStudentRepo = (assignment) => {
     if (!assignment?.studentRepos || !user?._id) return null;
@@ -357,6 +487,7 @@ const StudentDashboard = () => {
 
     try {
       setLoading(true);
+      setGithubError(null);
       
       // Fetch student data
       const studentResponse = await api.get(`/user/${user._id}`);
@@ -379,11 +510,23 @@ const StudentDashboard = () => {
       };
       
       if (studentData.githubID) {
-        const summaryResult = await fetchGithubSummary(user._id);
-        if (!isMountedRef.current) return;
-        
-        if (summaryResult.success) {
-          githubSummary = summaryResult.summary;
+        try {
+          const summaryResult = await fetchGithubSummary(user._id);
+          if (!isMountedRef.current) return;
+          
+          if (summaryResult.success) {
+            githubSummary = summaryResult.summary;
+            setIsGithubConnected(true);
+          } else {
+            setGithubError(summaryResult.error);
+            setIsGithubConnected(false);
+            toast.error("Failed to fetch GitHub data. Please check your GitHub connection.");
+          }
+        } catch (error) {
+          console.error("GitHub API Error:", error);
+          setGithubError(error.message || "Failed to connect to GitHub");
+          setIsGithubConnected(false);
+          toast.error("Failed to connect to GitHub. Please check your GitHub connection.");
         }
       }
       
@@ -449,6 +592,7 @@ const StudentDashboard = () => {
       if (isMountedRef.current) {
         console.error("Error fetching data:", error);
         setError(error.message || "Failed to load data");
+        toast.error("Failed to load dashboard data");
       }
     } finally {
       if (isMountedRef.current) {
@@ -460,6 +604,17 @@ const StudentDashboard = () => {
   useEffect(() => {
     fetchAllData();
   }, [user?._id]);
+
+  useEffect(() => {
+    // Check if GitHub ID is invalid based on statistics
+    if (studentData.student?.githubID && 
+        githubStats.totalRepos === 0 && 
+        githubStats.totalCommits === 0) {
+      setIsInvalidGithubId(true);
+    } else {
+      setIsInvalidGithubId(false);
+    }
+  }, [studentData.student?.githubID, githubStats.totalRepos, githubStats.totalCommits]);
 
   const handleUpdateSolutionUrl = (assignmentId, url) => {
     setSolutionUrls(prev => ({
@@ -506,6 +661,41 @@ const StudentDashboard = () => {
     setSolutionUrls(initialUrls);
   }, [assignments]);
 
+  const handleUpdateGithubId = async () => {
+    if (!newGithubId.trim()) {
+      toast.error("Please enter a valid GitHub username");
+      return;
+    }
+
+    try {
+      setIsUpdatingGithubId(true);
+      const response = await api.put(`/user/${user._id}/github`, {
+        githubID: newGithubId.trim()
+      });
+
+      if (response.data.success) {
+        toast.success("GitHub ID updated successfully");
+        setIsEditingGithubId(false);
+        setGithubError(null);
+        // Refresh all data
+        await fetchAllData();
+      } else {
+        toast.error(response.data.message || "Failed to update GitHub ID");
+      }
+    } catch (error) {
+      console.error("Error updating GitHub ID:", error);
+      if (error.response?.status === 404) {
+        toast.error("The update endpoint is not available. Please try again later.");
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to update GitHub ID. Please try again.");
+      }
+    } finally {
+      setIsUpdatingGithubId(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -519,6 +709,81 @@ const StudentDashboard = () => {
   return (
     <Navbar>
       <div className="container mx-auto p-6">
+        {/* GitHub Connection Status */}
+        {githubError && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                <div>
+                  <h3 className="font-medium text-red-700">GitHub Connection Issue</h3>
+                  <p className="text-sm text-red-600">{githubError}</p>
+                </div>
+              </div>
+              
+              {isEditingGithubId ? (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Enter your GitHub username"
+                      value={newGithubId}
+                      onChange={(e) => setNewGithubId(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingGithubId(false)}
+                      disabled={isUpdatingGithubId}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleUpdateGithubId}
+                      disabled={isUpdatingGithubId}
+                    >
+                      {isUpdatingGithubId ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        "Update"
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-red-500">
+                    Make sure to enter your exact GitHub username
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditingGithubId(true);
+                      setNewGithubId(studentData.student?.githubID || "");
+                    }}
+                  >
+                    Update GitHub ID
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/settings')}
+                  >
+                    Go to Settings
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-1 gap-7">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
@@ -543,7 +808,98 @@ const StudentDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-4">
+                  {(githubError || isInvalidGithubId) ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-5 w-5 text-red-500" />
+                        <h3 className="font-medium text-red-700">GitHub ID Issue</h3>
+                      </div>
+                      <p className="text-sm text-red-600 mb-3">
+                        Hey, your GitHub ID is invalid or not found. Please update it to view your GitHub statistics.
+                      </p>
+                      {isEditingGithubId ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="text"
+                            placeholder="Enter your GitHub username"
+                            value={newGithubId}
+                            onChange={(e) => setNewGithubId(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingGithubId(false)}
+                            disabled={isUpdatingGithubId}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={handleUpdateGithubId}
+                            disabled={isUpdatingGithubId}
+                          >
+                            {isUpdatingGithubId ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              "Update"
+                            )}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingGithubId(true);
+                            setNewGithubId(studentData.student?.githubID || "");
+                          }}
+                          className="bg-red-500 hover:bg-red-600"
+                        >
+                          Update GitHub ID
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="lucide lucide-github"
+                        >
+                          <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                          <path d="M9 18c-4.51 2-5-2-7-2" />
+                        </svg>
+                        <span className="font-medium">GitHub ID</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span>{studentData.student?.githubID || "Not connected"}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingGithubId(true);
+                            setNewGithubId(studentData.student?.githubID || "");
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-lg">
                     <span className="font-semibold">Name:</span>{" "}
                     {studentData.student?.firstName || "No data"}{" "}
@@ -843,6 +1199,14 @@ const StudentDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Add Skill Assessment */}
+          {studentData.repos && studentData.repos.length > 0 && (
+            <SkillAssessment 
+              studentRepos={studentData.repos} 
+              studentLeetCode={studentData.leetCode} 
+            />
           )}
 
           {/* Assignments Section */}

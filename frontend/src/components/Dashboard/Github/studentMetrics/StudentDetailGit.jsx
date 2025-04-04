@@ -441,89 +441,10 @@ const StudentDetailGit = () => {
         
         // Only fetch progress data if we have a valid GitHub username
         if (student.githubID) {
-          // Fetch student progress report with caching
-          let progressData = null;
-          let classAverageData = null;
-          let comparisonData = null;
-          
-          // Try to get progress data from cache
-          const progressCacheKey = `progress_data_${userId}`;
-          progressData = !forceRefresh ? getCachedData(progressCacheKey) : null;
-          
-          if (!progressData) {
-            try {
-              const progressResponse = await api.getStudentProgressReport(userId);
-              if (!isMounted) return;
-              progressData = progressResponse.data;
-              console.log("Progress report data:", progressData);
-              
-              // Cache the result if valid
-              if (progressData && progressData.codingActivity) {
-                setCachedData(progressCacheKey, progressData);
-              }
-            } catch (progressError) {
-              console.error('Error fetching student progress report:', progressError);
-            }
-          }
-          
-          // If we still don't have valid progress data, create default
-          if (!progressData || !progressData.codingActivity) {
-            console.log("Creating default progress data from metrics");
-            progressData = createDefaultProgressData(metrics, studentRepos, studentLeetCode);
-          }
-          
-          // Try to get class average data from cache
-          const classCacheKey = `class_average_${student.classId[0]._id}`;
-          classAverageData = !forceRefresh ? getCachedData(classCacheKey) : null;
-          
-          if (!classAverageData) {
-            try {
-              const classResponse = await api.getClassAverages(student.classId[0]._id);
-              if (!isMounted) return;
-              classAverageData = classResponse.data;
-              console.log("Class average data:", classAverageData);
-              
-              // Cache the result if valid
-              if (classAverageData) {
-                setCachedData(classCacheKey, classAverageData);
-              }
-            } catch (classError) {
-              console.error('Error fetching class averages:', classError);
-              if (classError.response?.data?.message === "No students found in this class") {
-                console.log("No other students with GitHub data found in this class for comparison");
-              }
-            }
-          }
-          
-          // If we still don't have valid class data, create default
-          if (!classAverageData) {
-            classAverageData = createDefaultClassAverageData();
-          }
-          
-          // Try to get comparison data from cache
-          const comparisonCacheKey = `comparison_data_${userId}`;
-          comparisonData = !forceRefresh ? getCachedData(comparisonCacheKey) : null;
-          
-          if (!comparisonData) {
-            try {
-              const comparisonResponse = await api.compareStudentWithClass(userId);
-              if (!isMounted) return;
-              comparisonData = comparisonResponse.data;
-              console.log("Comparison data:", comparisonData);
-              
-              // Cache the result if valid
-              if (comparisonData) {
-                setCachedData(comparisonCacheKey, comparisonData);
-              }
-            } catch (comparisonError) {
-              console.error('Error fetching comparison data:', comparisonError);
-            }
-          }
-          
-          // If we still don't have valid comparison data, create default
-          if (!comparisonData) {
-            comparisonData = createDefaultComparisonData();
-          }
+          // Create default progress data from available metrics
+          const progressData = createDefaultProgressData(metrics, studentRepos, studentLeetCode);
+          const classAverageData = createDefaultClassAverageData();
+          const comparisonData = createDefaultComparisonData();
 
           setProgressData(progressData);
           setClassAverageData({

@@ -18,7 +18,8 @@ import {
     deleteTeacher,
     getStudentsByClass,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    updateUserGithubId
 } from '../controllers/user.controller.js';
 import { bulkUploadStudentsJSON } from '../controllers/admin.controller.js';
 import authMiddelware from '../middelwares/auth.js';
@@ -48,6 +49,9 @@ router.post('/create-teacher', createTeacher);
 router.get('/teachers', getTeachers);
 router.put('/update-teacher/:id', updateTeacher);
 router.delete('/delete-teacher/:id', deleteTeacher);
+
+// GitHub ID update route
+router.put('/:userId/github', authMiddelware, updateUserGithubId);
 
 // Parameter routes should come last
 router.get('/:userId',  getUserById);

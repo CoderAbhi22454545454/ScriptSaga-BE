@@ -7,6 +7,20 @@ import { LeetCode } from '../models/leetcode.model.js';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import axios from 'axios';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const GitHub_BaseURL = "https://api.github.com";
+const token = process.env.GITHUB_TOKEN;
+
+const githubApi = axios.create({
+    baseURL: GitHub_BaseURL,
+    headers: {
+        'Authorization': `token ${token}`
+    }
+});
 
 // Create a user (admin or student)
 export const createUser = async (req, res) => {
@@ -821,5 +835,84 @@ export const resetPassword = async (req, res) => {
       success: false,
     });
   }
+};
+
+export const updateUserGithubId = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { githubID } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({
+                message: 'Invalid user ID format',
+                success: false
+            });
+        }
+
+        if (!githubID || typeof githubID !== 'string') {
+            return res.status(400).json({
+                message: 'GitHub ID is required and must be a string',
+                success: false
+            });
+        }
+
+        // Validate GitHub username format
+        const githubUsernameRegex = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+        if (!githubUsernameRegex.test(githubID)) {
+            return res.status(400).json({
+                message: 'Invalid GitHub username format',
+                success: false
+            });
+        }
+
+        // Check if GitHub user exists
+        try {
+            const response = await githubApi.get(`/users/${githubID}`);
+            if (response.status !== 200) {
+                return res.status(404).json({
+                    message: 'GitHub user not found',
+                    success: false
+                });
+            }
+        } catch (error) {
+            if (error.response?.status === 404) {
+                return res.status(404).json({
+                    message: 'GitHub user not found',
+                    success: false
+                });
+            }
+            throw error;
+        }
+
+        // Update user's GitHub ID
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { githubID },
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                message: 'User not found',
+                success: false
+            });
+        }
+
+        // Clear any existing GitHub data for this user
+        await GithubData.deleteMany({ userId });
+
+        return res.status(200).json({
+            message: 'GitHub ID updated successfully',
+            success: true,
+            user: updatedUser
+        });
+    } catch (error) {
+        console.error('Error updating GitHub ID:', error);
+        res.status(500).json({
+            message: 'Error updating GitHub ID',
+            success: false,
+            error: error.message
+        });
+    }
 };
 
