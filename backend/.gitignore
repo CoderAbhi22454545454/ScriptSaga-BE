@@ -24,3 +24,4 @@ build
 /backend/.env
 /backend/.env.local
 
+.vercel

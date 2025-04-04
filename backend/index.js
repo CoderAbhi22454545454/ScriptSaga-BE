@@ -20,7 +20,12 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser())
 
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: [
+        'http://localhost:5173', 
+        'http://localhost:3000',
+        'https://*.vercel.app',
+        'https://backend-cdntsdr93-abhisheks-projects-57371297.vercel.app'  // Add your frontend Vercel URL here
+    ],
     credentials: true,
 }));
 
