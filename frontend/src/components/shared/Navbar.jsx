@@ -314,62 +314,66 @@ export function Navbar({ children }) {
             </SheetContent>
           </Sheet>
 
-          {user?.role === "admin" || user?.role === "teacher" && (
+
             <div className="relative ml-auto flex-1 md:grow-0">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground bg-gray" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={handleSearchValue}
-              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-            />
-          </div>
-          )}
-
-          {searchTerm.trim().length > 0 && (
-            <div className="absolute top-14 right-32 w-96 bg-white border border-gray-200 mt-1 rounded-lg  max-h-60 overflow-y-auto z-50">
-              {isFetching &&
-                (!searchResults || searchResults.users.length === 0) && (
-                  <p>Loading...</p>
-                )}
-
-              {isSuccess && searchResults && searchResults.users.length > 0 && (
+              {user?.role !== "student" && (
                 <>
-                  {searchResults.users.map((user) => (
-                    <div
-                      key={user._id}
-                      onClick={() => handelStudentClick(user._id)}
-                      className="p-2 hover:bg-gray-100"
-                    >
-                      <p>
-                        {user.firstName} {user.lastName}
-                      </p>
-                    </div>
-                  ))}
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground bg-gray" />
+                  <Input
+                    type="search"
+                    placeholder="Search..."
+                    value={searchTerm}
+                    onChange={handleSearchValue}
+                    className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
+                  />
                 </>
               )}
-
-              {isSuccess && searchResults && (
-                <p
-                  className={`p-2 ${
-                    searchResults.users.length === 0 &&
-                    searchTerm.trim().length >= 1
-                      ? "block"
-                      : "hidden"
-                  }`}
-                >
-                  No users found
-                </p>
-              )}
-
-              {isError && (
-                <div className="absolute top-14 right-0 w-96 bg-white border border-gray-200 mt-1 rounded-lg shadow-lg z-50 p-4 text-center">
-                  <p>Something went wrong. Please try again.</p>
-                </div>
-              )}
             </div>
-          )}
+
+
+            {user?.role !== "student" && searchTerm.trim().length > 0 && (
+              <div className="absolute top-14 right-32 w-96 bg-white border border-gray-200 mt-1 rounded-lg  max-h-60 overflow-y-auto z-50">
+                {isFetching &&
+                  (!searchResults || searchResults.users.length === 0) && (
+                    <p>Loading...</p>
+                  )}
+
+                {isSuccess && searchResults && searchResults.users.length > 0 && (
+                  <>
+                    {searchResults.users.map((user) => (
+                      <div
+                        key={user._id}
+                        onClick={() => handelStudentClick(user._id)}
+                        className="p-2 hover:bg-gray-100"
+                      >
+                        <p>
+                          {user.firstName} {user.lastName}
+                        </p>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {isSuccess && searchResults && (
+                  <p
+                    className={`p-2 ${
+                      searchResults.users.length === 0 &&
+                      searchTerm.trim().length >= 1
+                        ? "block"
+                        : "hidden"
+                    }`}
+                  >
+                    No users found
+                  </p>
+                )}
+
+                {isError && (
+                  <div className="absolute top-14 right-0 w-96 bg-white border border-gray-200 mt-1 rounded-lg shadow-lg z-50 p-4 text-center">
+                    <p>Something went wrong. Please try again.</p>
+                  </div>
+                )}
+              </div>
+            )}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
