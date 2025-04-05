@@ -23,8 +23,8 @@ app.use(cors({
     origin: [
         'http://localhost:5173', 
         'http://localhost:3000',
+        'http://localhost:3000',
         'https://script-saga.vercel.app',
-        'https://scriptsaga.vercel.app',
         'https://scriptsaga-production.up.railway.app'
     ],
     credentials: true,
