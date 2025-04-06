@@ -7,10 +7,6 @@ export const logout = () => async (dispatch) => {
         // Call the backend logout endpoint
         await api.post("/user/logout");
         
-        // Clear localStorage items
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        
         // Clear Redux state
         dispatch(logoutUser());
         
@@ -24,9 +20,7 @@ export const logout = () => async (dispatch) => {
         window.location.href = "/login";
     } catch (error) {
         console.error("Logout error:", error);
-        // Even if the API call fails, we should still clear local data and redirect
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        // Even if the API call fails, we should still clear state and redirect
         dispatch(logoutUser());
         dispatch({ 
             type: PURGE,

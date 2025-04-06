@@ -66,11 +66,7 @@ const Login = () => {
     const onSubmit = async (data) => {
         try {
             dispatch(setLoading(true));
-            const res = await api.post('/user/login', data, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            const res = await api.post('/user/login', data);
 
             if (res.data.success) {
                 dispatch(setUser(res.data.user));

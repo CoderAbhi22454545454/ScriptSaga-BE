@@ -163,7 +163,9 @@ export const loginUser = async (req, res) => {
     return res.status(200).cookie('token', token, {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
       httpOnly: true,
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
+      domain: '.railway.app'
     }).json({
       message: `Welcome back ${user.firstName} 🤠`,
       user: responseUser,

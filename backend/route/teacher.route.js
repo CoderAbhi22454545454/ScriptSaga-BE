@@ -4,7 +4,7 @@ import authMiddelware from '../middelwares/auth.js';
 
 const router = express.Router();
 
-router.post('/create', authMiddelware, createTeacher);
+router.post('/create', createTeacher);
 router.post('/feedback', authMiddelware, addTeacherFeedback);
 router.get('/:teacherId/stats', authMiddelware, getTeacherStats);
 
