@@ -97,18 +97,18 @@ const AdminDashboard = () => {
 
     return (
         <Navbar>
-            <div className="container mx-auto py-8 space-y-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Dashboard</h1>
                         <p className="text-muted-foreground mt-1">Welcome back, {user.firstName}</p>
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <Button onClick={handleManageStudents} className="w-full md:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button onClick={handleManageStudents} className="w-full sm:w-auto">
                             <Users className="mr-2 h-4 w-4" />
                             Manage Students
                         </Button>
-                        <Button onClick={handleManageTeachers} className="w-full md:w-auto">
+                        <Button onClick={handleManageTeachers} className="w-full sm:w-auto">
                             <UserPlus className="mr-2 h-4 w-4" />
                             Manage Teachers
                         </Button>
@@ -116,16 +116,16 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Stats Overview */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <Card className="hover:shadow-lg transition-all duration-200">
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">Total Students</p>
-                                    <h3 className="text-3xl font-bold mt-1">{stats.totalStudents}</h3>
+                                    <h3 className="text-2xl sm:text-3xl font-bold mt-1">{stats.totalStudents}</h3>
                                 </div>
-                                <div className="bg-blue-100 p-3 rounded-full">
-                                    <Users className="h-6 w-6 text-blue-600" />
+                                <div className="bg-blue-100 p-2 sm:p-3 rounded-full">
+                                    <Users className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                                 </div>
                             </div>
                             <div className="mt-4">
@@ -142,14 +142,14 @@ const AdminDashboard = () => {
                     </Card>
                     
                     <Card className="hover:shadow-lg transition-all duration-200">
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">Total Classes</p>
-                                    <h3 className="text-3xl font-bold mt-1">{stats.totalClasses}</h3>
+                                    <h3 className="text-2xl sm:text-3xl font-bold mt-1">{stats.totalClasses}</h3>
                                 </div>
-                                <div className="bg-green-100 p-3 rounded-full">
-                                    <School className="h-6 w-6 text-green-600" />
+                                <div className="bg-green-100 p-2 sm:p-3 rounded-full">
+                                    <School className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                                 </div>
                             </div>
                             <div className="mt-4">
@@ -166,14 +166,14 @@ const AdminDashboard = () => {
                     </Card>
                     
                     <Card className="hover:shadow-lg transition-all duration-200">
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">Active Students</p>
-                                    <h3 className="text-3xl font-bold mt-1">{stats.activeStudents}</h3>
+                                    <h3 className="text-2xl sm:text-3xl font-bold mt-1">{stats.activeStudents}</h3>
                                 </div>
-                                <div className="bg-purple-100 p-3 rounded-full">
-                                    <BarChart className="h-6 w-6 text-purple-600" />
+                                <div className="bg-purple-100 p-2 sm:p-3 rounded-full">
+                                    <BarChart className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
                                 </div>
                             </div>
                             <div className="mt-4">
@@ -194,27 +194,27 @@ const AdminDashboard = () => {
 
                 {/* Classes Section */}
                 <Card className="border-0 shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white">
                         <div>
                             <CardTitle className="text-xl">Classes</CardTitle>
                             <CardDescription>Manage your classes and view student details</CardDescription>
                         </div>
-                        <Button variant="outline" size="sm" onClick={handleAddClass} className="hover:bg-gray-100">
+                        <Button variant="outline" size="sm" onClick={handleAddClass} className="w-full sm:w-auto hover:bg-gray-100">
                             Add Class
                         </Button>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {classes.map((classItem) => (
                                 <Card 
                                     key={classItem._id} 
                                     className="group cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 border-l-blue-500"
                                     onClick={() => handleClassClick(classItem._id)}
                                 >
-                                    <CardContent className="p-6">
-                                        <div className="flex flex-col space-y-4">
+                                    <CardContent className="p-4 sm:p-6">
+                                        <div className="flex flex-col space-y-3 sm:space-y-4">
                                             <div className="flex justify-between items-start">
-                                                <h3 className="font-semibold text-lg group-hover:text-blue-600 transition-colors">
+                                                <h3 className="font-semibold text-base sm:text-lg group-hover:text-blue-600 transition-colors">
                                                     {classItem.className}
                                                 </h3>
                                                 <Badge variant="outline" className="bg-blue-50 text-blue-700">
@@ -248,64 +248,68 @@ const AdminDashboard = () => {
 
                 {/* Teachers Section */}
                 <Card className="border-0 shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white">
                         <div>
                             <CardTitle className="text-xl">Teachers</CardTitle>
                             <CardDescription>View and manage faculty members</CardDescription>
                         </div>
-                        <Button variant="outline" size="sm" onClick={handleManageTeachers} className="hover:bg-gray-100">
+                        <Button variant="outline" size="sm" onClick={handleManageTeachers} className="w-full sm:w-auto hover:bg-gray-100">
                             <UserPlus className="h-4 w-4 mr-2" />
                             Add Teacher
                         </Button>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="hover:bg-transparent">
-                                    <TableHead className="font-semibold">Name</TableHead>
-                                    <TableHead className="font-semibold">Email</TableHead>
-                                    <TableHead className="font-semibold">Classes</TableHead>
-                                    <TableHead className="font-semibold">GitHub Username</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {teachers.length > 0 ? (
-                                    teachers.map((teacher) => (
-                                        <TableRow key={teacher._id} className="hover:bg-gray-50 cursor-pointer">
-                                            <TableCell className="font-medium">
-                                                {teacher.firstName} {teacher.lastName}
-                                            </TableCell>
-                                            <TableCell>{teacher.email}</TableCell>
-                                            <TableCell>
-                                                {teacher.classId && teacher.classId.length > 0 ? 
-                                                    teacher.classId.map(cls => (
-                                                        <Badge 
-                                                            key={cls._id} 
-                                                            variant="outline" 
-                                                            className="mr-1 mb-1 bg-gray-50"
-                                                        >
-                                                            {`${cls.yearOfStudy || cls.className?.split('-')[0] || ''}-${cls.branch || ''}-${cls.division || ''}`}
-                                                        </Badge>
-                                                    )) : 
-                                                    <span className="text-muted-foreground">No classes assigned</span>
-                                                }
-                                            </TableCell>
-                                            <TableCell>
-                                                {teacher.githubUsername || 
-                                                    <span className="text-muted-foreground">Not set</span>
-                                                }
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="font-semibold">Name</TableHead>
+                                        <TableHead className="font-semibold">Email</TableHead>
+                                        <TableHead className="font-semibold">Classes</TableHead>
+                                        <TableHead className="font-semibold">GitHub Username</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {teachers.length > 0 ? (
+                                        teachers.map((teacher) => (
+                                            <TableRow key={teacher._id} className="hover:bg-gray-50 cursor-pointer">
+                                                <TableCell className="font-medium">
+                                                    {teacher.firstName} {teacher.lastName}
+                                                </TableCell>
+                                                <TableCell>{teacher.email}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {teacher.classId && teacher.classId.length > 0 ? 
+                                                            teacher.classId.map(cls => (
+                                                                <Badge 
+                                                                    key={cls._id} 
+                                                                    variant="outline" 
+                                                                    className="bg-gray-50"
+                                                                >
+                                                                    {`${cls.yearOfStudy || cls.className?.split('-')[0] || ''}-${cls.branch || ''}-${cls.division || ''}`}
+                                                                </Badge>
+                                                            )) : 
+                                                            <span className="text-muted-foreground">No classes assigned</span>
+                                                        }
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {teacher.githubUsername || 
+                                                        <span className="text-muted-foreground">Not set</span>
+                                                    }
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                No teachers found. Add teachers to get started.
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                            No teachers found. Add teachers to get started.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
 

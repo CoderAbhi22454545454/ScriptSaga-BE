@@ -42,7 +42,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { logout } from "@/redux/authActions";
 import { useDispatch } from "react-redux";
@@ -59,6 +59,7 @@ export function Navbar({ children }) {
   const previousSearchResults = useRef([]);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const user = useSelector((state) => state.auth.user);
   const dispatch = useDispatch();
@@ -150,19 +151,23 @@ export function Navbar({ children }) {
     {
       title: "Classes",
       href: "/teacher/classes",
-      icon: BookOpen
+      icon: BookOpen,
     },
     {
       title: "Students",
       href: "/teacher/students",
-      icon: Users
+      icon: Users,
     },
     {
       title: "Settings",
       href: `/teacher/settings/${user?._id}`,
-      icon: Settings
-    }
+      icon: Settings,
+    },
   ];
+
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -177,89 +182,131 @@ export function Navbar({ children }) {
           {user.role === "admin" && (
             <ul className="p-4 space-y-2">
               <li>
-              <Link
-                to="/admin"
-                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
-              >
-                <Home className="h-5 w-5" />
-                <span>Dashboard</span>
-              </Link>
-              <Link
-                to="/admin/class-management"
-                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
-              >
-                <School className="h-5 w-5" />
-                <span>Classes</span>
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/admin/student-management"
-                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
-              >
-                <Users2 className="h-5 w-5" />
-                <span>Students</span>
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/admin/teacher-management"
-                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
-              >
-                <Users2 className="h-5 w-5" />
-                <span>Teachers</span>
-              </Link>
-            </li>
-          </ul>
+                <Link
+                  to="/admin"
+                  className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                    isActive("/admin")
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <Home className="h-5 w-5" />
+                  <span>Dashboard</span>
+                </Link>
+                <Link
+                  to="/admin/class-management"
+                  className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                    isActive("/admin/class-management")
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <School className="h-5 w-5" />
+                  <span>Classes</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/admin/student-management"
+                  className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                    isActive("/admin/student-management")
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <Users2 className="h-5 w-5" />
+                  <span>Students</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/admin/teacher-management"
+                  className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                    isActive("/admin/teacher-management")
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <Users2 className="h-5 w-5" />
+                  <span>Teachers</span>
+                </Link>
+              </li>
+            </ul>
           )}
           {user.role === "student" && (
             <ul className="p-4 space-y-2">
               <li>
-                <Link to="/student" className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100">
+                <Link
+                  to="/student"
+                  className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                    isActive("/student")
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
                   <Home className="h-5 w-5" />
                   <span>Dashboard</span>
                 </Link>
               </li>
               <li>
-                <Link to="/student/github-learning" className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100">
+                <Link
+                  to="/student/github-learning"
+                  className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                    isActive("/student/github-learning")
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
                   <Github className="h-5 w-5" />
                   <span>GitHub Learning</span>
                 </Link>
               </li>
             </ul>
           )}
-          {user?.role === 'teacher' && teacherLinks.map((link) => 
-          (
-            <ul className="p-2 py-1 space-y-2 list-none" key={link.href}>
-            <li>
-              <Link
-                to={link.href}
-                className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
-              >
-                <link.icon className="h-5 w-5" />
-                <span>{link.title}</span>
-              </Link>
-            </li>
-            </ul>
-          ))}
+          {user?.role === "teacher" &&
+            teacherLinks.map((link) => (
+              <ul className="p-2 py-1 space-y-2 list-none" key={link.href}>
+                <li>
+                  <Link
+                    to={link.href}
+                    className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                      isActive(link.href)
+                        ? "bg-indigo-50 text-indigo-600"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <link.icon className="h-5 w-5" />
+                    <span>{link.title}</span>
+                  </Link>
+                </li>
+              </ul>
+            ))}
         </nav>
         <div className="border-t p-4">
           {user.role === "admin" && (
             <Link
               to={`/admin/settings/${user._id}`}
-            className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
-          >
-            <Settings className="h-5 w-5" />
-            <span>Settings</span>
+              className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                isActive(`/admin/settings/${user._id}`)
+                  ? "bg-indigo-50 text-indigo-600"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <Settings className="h-5 w-5" />
+              <span>Settings</span>
             </Link>
           )}
           {user.role === "student" && (
             <Link
               to={`/student/settings/${user._id}`}
-            className="flex items-center space-x-2 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100"
-          >
-            <Settings className="h-5 w-5" />
-            <span>Settings</span>
+              className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                isActive(`/student/settings/${user._id}`)
+                  ? "bg-indigo-50 text-indigo-600"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <Settings className="h-5 w-5" />
+              <span>Settings</span>
             </Link>
           )}
         </div>
@@ -274,107 +321,175 @@ export function Navbar({ children }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs">
-              <nav className="grid gap-6 text-lg font-medium">
-                <Link
-                  to="/"
-                  className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                >
-                  <Home className="h-5 w-5" />
-                  Dashboard
-                </Link>
-                <Link
-                  to="/orders"
-                  className="flex items-center gap-4 px-2.5 text-foreground"
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  Orders
-                </Link>
-                <Link
-                  to="/products"
-                  className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                >
-                  <Package className="h-5 w-5" />
-                  Products
-                </Link>
-                <Link
-                  to="/customers"
-                  className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                >
-                  <Users2 className="h-5 w-5" />
-                  Customers
-                </Link>
-                <Link
-                  to="/analytics"
-                  className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                >
-                  <LineChart className="h-5 w-5" />
-                  Analytics
-                </Link>
+              <nav className="flex-1 overflow-y-auto">
+                {user.role === "admin" && (
+                  <ul className="p-0 mt-5 pt-1 space-y-2">
+                    <li>
+                      <Link
+                        to="/admin"
+                        className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                          isActive("/admin")
+                            ? "bg-indigo-50 text-indigo-600"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <Home className="h-5 w-5" />
+                        <span>Dashboard</span>
+                      </Link>
+                      <Link
+                        to="/admin/class-management"
+                        className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                          isActive("/admin/class-management")
+                            ? "bg-indigo-50 text-indigo-600"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <School className="h-5 w-5" />
+                        <span>Classes</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/admin/student-management"
+                        className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                          isActive("/admin/student-management")
+                            ? "bg-indigo-50 text-indigo-600"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <Users2 className="h-5 w-5" />
+                        <span>Students</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/admin/teacher-management"
+                        className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                          isActive("/admin/teacher-management")
+                            ? "bg-indigo-50 text-indigo-600"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <Users2 className="h-5 w-5" />
+                        <span>Teachers</span>
+                      </Link>
+                    </li>
+                  </ul>
+                )}
+                {user.role === "student" && (
+                  <ul className="p-4 space-y-2">
+                    <li>
+                      <Link
+                        to="/student"
+                        className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                          isActive("/student")
+                            ? "bg-indigo-50 text-indigo-600"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <Home className="h-5 w-5" />
+                        <span>Dashboard</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/student/github-learning"
+                        className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                          isActive("/student/github-learning")
+                            ? "bg-indigo-50 text-indigo-600"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <Github className="h-5 w-5" />
+                        <span>GitHub Learning</span>
+                      </Link>
+                    </li>
+                  </ul>
+                )}
+                {user?.role === "teacher" &&
+                  teacherLinks.map((link) => (
+                    <ul
+                      className="p-2 py-1 space-y-2 list-none"
+                      key={link.href}
+                    >
+                      <li>
+                        <Link
+                          to={link.href}
+                          className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                            isActive(link.href)
+                              ? "bg-indigo-50 text-indigo-600"
+                              : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                        >
+                          <link.icon className="h-5 w-5" />
+                          <span>{link.title}</span>
+                        </Link>
+                      </li>
+                    </ul>
+                  ))}
               </nav>
             </SheetContent>
           </Sheet>
 
+          <div className="relative ml-auto flex-1 md:grow-0">
+            {user?.role !== "student" && (
+              <>
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground bg-gray" />
+                <Input
+                  type="search"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={handleSearchValue}
+                  className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
+                />
+              </>
+            )}
+          </div>
 
-            <div className="relative ml-auto flex-1 md:grow-0">
-              {user?.role !== "student" && (
+          {user?.role !== "student" && searchTerm.trim().length > 0 && (
+            <div className="absolute top-14 right-32 w-96 bg-white border border-gray-200 mt-1 rounded-lg  max-h-60 overflow-y-auto z-50">
+              {isFetching &&
+                (!searchResults || searchResults.users.length === 0) && (
+                  <p>Loading...</p>
+                )}
+
+              {isSuccess && searchResults && searchResults.users.length > 0 && (
                 <>
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground bg-gray" />
-                  <Input
-                    type="search"
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={handleSearchValue}
-                    className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-                  />
+                  {searchResults.users.map((user) => (
+                    <div
+                      key={user._id}
+                      onClick={() => handelStudentClick(user._id)}
+                      className="p-2 hover:bg-gray-100"
+                    >
+                      <p>
+                        {user.firstName} {user.lastName}
+                      </p>
+                    </div>
+                  ))}
                 </>
               )}
+
+              {isSuccess && searchResults && (
+                <p
+                  className={`p-2 ${
+                    searchResults.users.length === 0 &&
+                    searchTerm.trim().length >= 1
+                      ? "block"
+                      : "hidden"
+                  }`}
+                >
+                  No users found
+                </p>
+              )}
+
+              {isError && (
+                <div className="absolute top-14 right-0 w-96 bg-white border border-gray-200 mt-1 rounded-lg shadow-lg z-50 p-4 text-center">
+                  <p>Something went wrong. Please try again.</p>
+                </div>
+              )}
             </div>
+          )}
 
-
-            {user?.role !== "student" && searchTerm.trim().length > 0 && (
-              <div className="absolute top-14 right-32 w-96 bg-white border border-gray-200 mt-1 rounded-lg  max-h-60 overflow-y-auto z-50">
-                {isFetching &&
-                  (!searchResults || searchResults.users.length === 0) && (
-                    <p>Loading...</p>
-                  )}
-
-                {isSuccess && searchResults && searchResults.users.length > 0 && (
-                  <>
-                    {searchResults.users.map((user) => (
-                      <div
-                        key={user._id}
-                        onClick={() => handelStudentClick(user._id)}
-                        className="p-2 hover:bg-gray-100"
-                      >
-                        <p>
-                          {user.firstName} {user.lastName}
-                        </p>
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                {isSuccess && searchResults && (
-                  <p
-                    className={`p-2 ${
-                      searchResults.users.length === 0 &&
-                      searchTerm.trim().length >= 1
-                        ? "block"
-                        : "hidden"
-                    }`}
-                  >
-                    No users found
-                  </p>
-                )}
-
-                {isError && (
-                  <div className="absolute top-14 right-0 w-96 bg-white border border-gray-200 mt-1 rounded-lg shadow-lg z-50 p-4 text-center">
-                    <p>Something went wrong. Please try again.</p>
-                  </div>
-                )}
-              </div>
-            )}
-          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className="flex flex-col items-center gap-1">
@@ -413,7 +528,10 @@ export function Navbar({ children }) {
               <DropdownMenuSeparator />
               {user?.role === "admin" && (
                 <DropdownMenuItem asChild className="py-3">
-                  <Link to={`/admin/settings/${user._id}`} className="flex items-center">
+                  <Link
+                    to={`/admin/settings/${user._id}`}
+                    className="flex items-center"
+                  >
                     <Settings className="mr-3 h-5 w-5" />
                     <span className="text-base">Settings</span>
                   </Link>
@@ -421,7 +539,10 @@ export function Navbar({ children }) {
               )}
               {user?.role === "teacher" && (
                 <DropdownMenuItem asChild className="py-3">
-                  <Link to={`/teacher/settings/${user._id}`} className="flex items-center">
+                  <Link
+                    to={`/teacher/settings/${user._id}`}
+                    className="flex items-center"
+                  >
                     <Settings className="mr-3 h-5 w-5" />
                     <span className="text-base">Settings</span>
                   </Link>
@@ -429,21 +550,27 @@ export function Navbar({ children }) {
               )}
               {user?.role === "student" && (
                 <DropdownMenuItem asChild className="py-3">
-                  <Link to={`/student/settings/${user._id}`} className="flex items-center">
+                  <Link
+                    to={`/student/settings/${user._id}`}
+                    className="flex items-center"
+                  >
                     <Settings className="mr-3 h-5 w-5" />
                     <span className="text-base">Settings</span>
                   </Link>
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="flex items-center text-red-600 py-3">
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="flex items-center text-red-600 py-3"
+              >
                 <LogOut className="mr-3 h-5 w-5" />
                 <span className="text-base">Logout</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="p-4 pl-40 bg-transparent">{children}</main>
+        <main className="p-4 pl-4 bg-transparent sm:pl-40">{children}</main>
       </div>
     </div>
   );
