@@ -146,45 +146,45 @@ const StudentProgressDashboard = ({ userId, progressData, classAverageData, isLo
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="consistency">Consistency</TabsTrigger>
-            <TabsTrigger value="trends">Trends & Improvement</TabsTrigger>
-            <TabsTrigger value="comparison">Class Comparison</TabsTrigger>
+          <TabsList className="mb-4 flex overflow-hidden overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 scrollbar-thumb-rounded-full scrollbar-track-rounded-full ps-24 sm:ps-1 ">
+            <TabsTrigger value="overview" className="text-sm sm:text-base">Overview</TabsTrigger>
+            <TabsTrigger value="consistency" className="text-sm sm:text-base">Consistency</TabsTrigger>
+            <TabsTrigger value="trends" className="text-sm sm:text-base">Trends & Improvement</TabsTrigger>
+            <TabsTrigger value="comparison" className="text-sm sm:text-base">Class Comparison</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {/* GitHub Activity Summary */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Github className="h-5 w-5" />
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <Github className="h-4 w-4 sm:h-5 sm:w-5" />
                     GitHub Activity
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div>
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Total Commits</span>
-                        <span className="text-sm font-medium">{codingActivity?.totalCommits || 0}</span>
+                        <span className="text-xs sm:text-sm font-medium">Total Commits</span>
+                        <span className="text-xs sm:text-sm font-medium">{codingActivity?.totalCommits || 0}</span>
                       </div>
-                      <Progress value={(codingActivity?.totalCommits / 500) * 100} className="h-2" />
+                      <Progress value={(codingActivity?.totalCommits / 500) * 100} className="h-1.5 sm:h-2" />
                     </div>
                     <div>
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Recent Commits (90 days)</span>
-                        <span className="text-sm font-medium">{codingActivity?.recentCommits || 0}</span>
+                        <span className="text-xs sm:text-sm font-medium">Recent Commits (90 days)</span>
+                        <span className="text-xs sm:text-sm font-medium">{codingActivity?.recentCommits || 0}</span>
                       </div>
-                      <Progress value={(codingActivity?.recentCommits / 100) * 100} className="h-2" />
+                      <Progress value={(codingActivity?.recentCommits / 100) * 100} className="h-1.5 sm:h-2" />
                     </div>
                     <div>
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Active Repositories</span>
-                        <span className="text-sm font-medium">{repositories?.active || 0}</span>
+                        <span className="text-xs sm:text-sm font-medium">Active Repositories</span>
+                        <span className="text-xs sm:text-sm font-medium">{repositories?.active || 0}</span>
                       </div>
-                      <Progress value={(repositories?.active / 10) * 100} className="h-2" />
+                      <Progress value={(repositories?.active / 10) * 100} className="h-1.5 sm:h-2" />
                     </div>
                   </div>
                 </CardContent>
@@ -193,38 +193,38 @@ const StudentProgressDashboard = ({ userId, progressData, classAverageData, isLo
               {/* LeetCode Summary */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Code className="h-5 w-5" />
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <Code className="h-4 w-4 sm:h-5 sm:w-5" />
                     LeetCode Progress
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {leetcode ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <div>
                         <div className="flex justify-between mb-1">
-                          <span className="text-sm font-medium">Total Problems Solved</span>
-                          <span className="text-sm font-medium">{leetcode?.totalSolved || 0}</span>
+                          <span className="text-xs sm:text-sm font-medium">Total Problems Solved</span>
+                          <span className="text-xs sm:text-sm font-medium">{leetcode?.totalSolved || 0}</span>
                         </div>
-                        <Progress value={(leetcode?.totalSolved / 200) * 100} className="h-2" />
+                        <Progress value={(leetcode?.totalSolved / 200) * 100} className="h-1.5 sm:h-2" />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <div className="bg-green-100 rounded-md p-2 text-center">
-                          <span className="text-sm text-green-800 font-medium">Easy</span>
-                          <p className="text-lg font-bold text-green-600">{leetcode?.easySolved || 0}</p>
+                          <span className="text-xs sm:text-sm text-green-800 font-medium">Easy</span>
+                          <p className="text-lg sm:text-xl font-bold text-green-600">{leetcode?.easySolved || 0}</p>
                         </div>
                         <div className="bg-yellow-100 rounded-md p-2 text-center">
-                          <span className="text-sm text-yellow-800 font-medium">Medium</span>
-                          <p className="text-lg font-bold text-yellow-600">{leetcode?.mediumSolved || 0}</p>
+                          <span className="text-xs sm:text-sm text-yellow-800 font-medium">Medium</span>
+                          <p className="text-lg sm:text-xl font-bold text-yellow-600">{leetcode?.mediumSolved || 0}</p>
                         </div>
                         <div className="bg-red-100 rounded-md p-2 text-center">
-                          <span className="text-sm text-red-800 font-medium">Hard</span>
-                          <p className="text-lg font-bold text-red-600">{leetcode?.hardSolved || 0}</p>
+                          <span className="text-xs sm:text-sm text-red-800 font-medium">Hard</span>
+                          <p className="text-lg sm:text-xl font-bold text-red-600">{leetcode?.hardSolved || 0}</p>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-gray-500">
+                    <div className="text-center py-4 text-gray-500 text-sm sm:text-base">
                       <p>No LeetCode data available</p>
                     </div>
                   )}
@@ -235,10 +235,10 @@ const StudentProgressDashboard = ({ userId, progressData, classAverageData, isLo
             {/* Activity Chart */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Recent Activity</CardTitle>
+                <CardTitle className="text-base sm:text-lg">Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
+                <div className="h-60 sm:h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={activityData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -256,38 +256,38 @@ const StudentProgressDashboard = ({ userId, progressData, classAverageData, isLo
             </Card>
           </TabsContent>
 
-          <TabsContent value="consistency" className="space-y-6">
+          <TabsContent value="consistency" className="space-y-4 sm:space-y-6">
             {/* Consistency Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <Card className="bg-white">
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 sm:pt-6">
                   <div className="text-center">
-                    <Calendar className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-                    <h3 className="text-lg font-semibold mb-1">Current Streak</h3>
-                    <p className="text-3xl font-bold">{codingActivity?.currentStreak || 0}</p>
-                    <p className="text-sm text-gray-500">consecutive days</p>
+                    <Calendar className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-blue-500" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-1">Current Streak</h3>
+                    <p className="text-2xl sm:text-3xl font-bold">{codingActivity?.currentStreak || 0}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">consecutive days</p>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-white">
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 sm:pt-6">
                   <div className="text-center">
-                    <Award className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
-                    <h3 className="text-lg font-semibold mb-1">Longest Streak</h3>
-                    <p className="text-3xl font-bold">{codingActivity?.longestStreak || 0}</p>
-                    <p className="text-sm text-gray-500">consecutive days</p>
+                    <Award className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-yellow-500" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-1">Longest Streak</h3>
+                    <p className="text-2xl sm:text-3xl font-bold">{codingActivity?.longestStreak || 0}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">consecutive days</p>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-white">
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 sm:pt-6">
                   <div className="text-center">
-                    <Activity className="h-8 w-8 mx-auto mb-2 text-green-500" />
-                    <h3 className="text-lg font-semibold mb-1">Active Days (30 days)</h3>
-                    <p className="text-3xl font-bold">{codingActivity?.activeDaysLast30 || 0}</p>
-                    <p className="text-sm text-gray-500">days with activity</p>
+                    <Activity className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-green-500" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-1">Active Days (30 days)</h3>
+                    <p className="text-2xl sm:text-3xl font-bold">{codingActivity?.activeDaysLast30 || 0}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">days with activity</p>
                   </div>
                 </CardContent>
               </Card>

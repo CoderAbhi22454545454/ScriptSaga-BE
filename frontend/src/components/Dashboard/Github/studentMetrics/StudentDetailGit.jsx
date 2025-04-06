@@ -688,7 +688,7 @@ const StudentDetailGit = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
+            <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
@@ -713,15 +713,48 @@ const StudentDetailGit = () => {
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
             ) : (
-              <GitHubMetrics stats={metrics} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <GitBranch className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+                    <h3 className="text-xs sm:text-sm text-gray-500">Public Repositories</h3>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-bold">{metrics?.totalRepos || 0}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    <h3 className="text-xs sm:text-sm text-gray-500">Total Stars</h3>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-bold">{metrics?.totalStars || 0}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <GitBranch className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
+                    <h3 className="text-xs sm:text-sm text-gray-500">Repository Forks</h3>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-bold">{metrics?.totalForks || 0}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
+                    <h3 className="text-xs sm:text-sm text-gray-500">Last Updated</h3>
+                  </div>
+                  <p className="text-sm sm:text-base font-bold">
+                    {metrics?.lastUpdated ? new Date(metrics.lastUpdated).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <BarChartIcon className="h-6 w-6" />
+            <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+              <BarChartIcon className="h-5 w-5 sm:h-6 sm:w-6" />
               Recommended Domains
             </CardTitle>
           </CardHeader>
@@ -732,10 +765,28 @@ const StudentDetailGit = () => {
               </div>
             ) : (
               metrics && languageUsage && (
-                <DomainRecommendations 
-                  languages={languageUsage} 
-                  metrics={metrics}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  {Object.entries(languageUsage).map(([language, count], index) => (
+                    <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm sm:text-base font-medium">{language}</span>
+                        <span className="text-xs sm:text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          {count} repos
+                        </span>
+                      </div>
+                      <div className="mt-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-500 h-2 rounded-full"
+                            style={{
+                              width: `${(count / Math.max(...Object.values(languageUsage))) * 100}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )
             )}
           </CardContent>
@@ -752,11 +803,11 @@ const StudentDetailGit = () => {
 
   return (
     <Navbar>
-      <div className="container mx-auto p-6">
-        <div className="flex justify-end mb-2">
+      <div className="container mx-auto p-4 sm:p-6">
+        <div className="flex justify-end mb-4">
           <button
             onClick={refreshData}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors"
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md transition-colors text-sm sm:text-base"
             disabled={loading || isLoadingProgress}
           >
             <RefreshCw className={`h-4 w-4 ${loading || isLoadingProgress ? 'animate-spin' : ''}`} />
@@ -765,10 +816,10 @@ const StudentDetailGit = () => {
         </div>
         {renderContent()}
 
-        <div className="mt-8">
+        <div className="mt-6 sm:mt-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
+              <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -796,54 +847,54 @@ const StudentDetailGit = () => {
                 student?.leetCodeID ? (
                   studentLeetCode?.completeProfile ? (
                     <>
-                      <div className="user-profile mb-10 mt-4 bg-gray-100 p-4 rounded-lg">
-                        <h1 className="text-md font-semibold">Basic Profile</h1>
-                        <p className="text-sm mt-4">
+                      <div className="user-profile mb-6 sm:mb-10 mt-4 bg-gray-100 p-3 sm:p-4 rounded-lg">
+                        <h1 className="text-sm sm:text-md font-semibold">Basic Profile</h1>
+                        <p className="text-xs sm:text-sm mt-3 sm:mt-4">
                           <span className="font-semibold">Username:</span>{" "}
                           {studentLeetCode.basicProfile.username}
                         </p>
-                        <p className="mt-2 text-sm">
+                        <p className="mt-2 text-xs sm:text-sm">
                           <span className="font-medium">Rank:</span>{" "}
                           {studentLeetCode.basicProfile.ranking}
                         </p>
-                        <p className="mt-2 text-sm">
+                        <p className="mt-2 text-xs sm:text-sm">
                           <span className="font-medium">Contribution:</span>{" "}
                           {studentLeetCode.basicProfile.reputation}
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-blue-500 text-white p-4 rounded-lg">
-                          <p className="text-sm font-medium">Total Solved</p>
-                          <p className="text-2xl font-bold mt-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                        <div className="bg-blue-500 text-white p-3 sm:p-4 rounded-lg">
+                          <p className="text-xs sm:text-sm font-medium">Total Solved</p>
+                          <p className="text-xl sm:text-2xl font-bold mt-1">
                             {studentLeetCode.completeProfile.solvedProblem || 0}
                           </p>
                         </div>
-                        <div className="bg-green-500 text-white p-4 rounded-lg">
-                          <p className="text-sm font-medium">Easy Solved</p>
-                          <p className="text-2xl font-bold mt-1">
+                        <div className="bg-green-500 text-white p-3 sm:p-4 rounded-lg">
+                          <p className="text-xs sm:text-sm font-medium">Easy Solved</p>
+                          <p className="text-xl sm:text-2xl font-bold mt-1">
                             {studentLeetCode.completeProfile.easySolved || 0}
                           </p>
                         </div>
-                        <div className="bg-yellow-500 text-white p-4 rounded-lg">
-                          <p className="text-sm font-medium">Medium Solved</p>
-                          <p className="text-2xl font-bold mt-1">
+                        <div className="bg-yellow-500 text-white p-3 sm:p-4 rounded-lg">
+                          <p className="text-xs sm:text-sm font-medium">Medium Solved</p>
+                          <p className="text-xl sm:text-2xl font-bold mt-1">
                             {studentLeetCode.completeProfile.mediumSolved || 0}
                           </p>
                         </div>
-                        <div className="bg-red-500 text-white p-4 rounded-lg">
-                          <p className="text-sm font-medium">Hard Solved</p>
-                          <p className="text-2xl font-bold mt-1">
+                        <div className="bg-red-500 text-white p-3 sm:p-4 rounded-lg">
+                          <p className="text-xs sm:text-sm font-medium">Hard Solved</p>
+                          <p className="text-xl sm:text-2xl font-bold mt-1">
                             {studentLeetCode.completeProfile.hardSolved || 0}
                           </p>
                         </div>
                       </div>
                     </>
                   ) : (
-                    <p className="text-center text-gray-500">No LeetCode data available</p>
+                    <p className="text-center text-gray-500 text-sm sm:text-base">No LeetCode data available</p>
                   )
                 ) : (
-                  <p className="text-center text-gray-500">
+                  <p className="text-center text-gray-500 text-sm sm:text-base">
                     User has not linked their LeetCode account
                   </p>
                 )
@@ -852,11 +903,11 @@ const StudentDetailGit = () => {
           </Card>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-6 sm:mt-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <TrendingUp className="h-6 w-6" />
+              <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
                 Progress Timeline
               </CardTitle>
             </CardHeader>
@@ -875,11 +926,11 @@ const StudentDetailGit = () => {
           </Card>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-6 sm:mt-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <Brain className="h-6 w-6" />
+              <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                <Brain className="h-5 w-5 sm:h-6 sm:w-6" />
                 Skill Assessment
               </CardTitle>
             </CardHeader>
@@ -898,11 +949,11 @@ const StudentDetailGit = () => {
           </Card>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-6 sm:mt-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <BookOpen className="h-6 w-6" />
+              <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
                 Learning Path Recommendations
               </CardTitle>
             </CardHeader>
@@ -921,10 +972,10 @@ const StudentDetailGit = () => {
           </Card>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-6 sm:mt-8">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
+              <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -950,18 +1001,18 @@ const StudentDetailGit = () => {
               {isLoadingRepos ? (
                 <div className="flex justify-center items-center py-10">
                   <Loader2 className="h-8 w-8 animate-spin mr-2" />
-                  <span>Loading repositories...</span>
+                  <span className="text-sm sm:text-base">Loading repositories...</span>
                 </div>
               ) : (
                 !loading && error && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6">
                     <div className="flex items-center">
-                      <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                      <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-2" />
                       <div>
-                        <p className="font-medium text-red-800">GitHub Data Error</p>
-                        <p className="text-sm text-red-600">{error}</p>
+                        <p className="font-medium text-red-800 text-sm sm:text-base">GitHub Data Error</p>
+                        <p className="text-xs sm:text-sm text-red-600">{error}</p>
                         {error.includes("not found") && (
-                          <p className="text-sm text-gray-600 mt-2">
+                          <p className="text-xs sm:text-sm text-gray-600 mt-2">
                             Please ensure your GitHub username is correct in your profile settings.
                           </p>
                         )}
@@ -972,12 +1023,12 @@ const StudentDetailGit = () => {
               )}
 
               {!loading && studentRepos.some(repo => repo.isEmptyRepo) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6">
                   <div className="flex items-center">
-                    <GitBranch className="h-5 w-5 text-blue-500 mr-2" />
+                    <GitBranch className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2" />
                     <div>
-                      <p className="font-medium">Empty Repository</p>
-                      <p className="text-sm text-gray-600">One or more GitHub repositories exist but don't have any commits yet.</p>
+                      <p className="font-medium text-sm sm:text-base">Empty Repository</p>
+                      <p className="text-xs sm:text-sm text-gray-600">One or more GitHub repositories exist but don't have any commits yet.</p>
                     </div>
                   </div>
                 </div>
@@ -988,38 +1039,38 @@ const StudentDetailGit = () => {
                   <Accordion
                     type="single"
                     collapsible
-                    className="mb-4 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-md"
+                    className="mb-3 sm:mb-4 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-md"
                     key={index}
                   >
                     <AccordionItem
                       value={`${index + 1}`}
                       className="border-b-0"
                     >
-                      <AccordionTrigger className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      <AccordionTrigger className="px-3 sm:px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                         <div className="flex flex-col items-start text-left w-full">
-                          <h3 className="font-semibold text-lg">
+                          <h3 className="font-semibold text-base sm:text-lg">
                             {repo.full_name}
                           </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
                             {repo.description || "No description"}
                           </p>
-                          <div className="flex items-center mt-2 space-x-4">
-                            <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          <div className="flex items-center mt-2 space-x-3 sm:space-x-4">
+                            <span className="text-xs sm:text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                               {repo.commits.length} commits
                             </span>
-                            <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                            <span className="text-xs sm:text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
                               {repo.language || "Unknown"}
                             </span>
                           </div>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className="px-4 py-2">
+                      <AccordionContent className="px-3 sm:px-4 py-2">
                         {repo.commits.length > 0 ? (
-                          <div className="space-y-4">
+                          <div className="space-y-3 sm:space-y-4">
                             {repo.commits.map((commit, commitIndex) => (
                               <div
                                 key={commitIndex}
-                                className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm"
+                                className="bg-white dark:bg-gray-700 p-2 sm:p-3 rounded-lg shadow-sm"
                                 style={{
                                   '&:after': {
                                     content: '""',
@@ -1030,10 +1081,10 @@ const StudentDetailGit = () => {
                                   },
                                 }}
                               >
-                                  <p className="font-medium text-lg mb-2">
+                                  <p className="font-medium text-base sm:text-lg mb-2">
                                     {commit.message}
                                   </p>
-                                  <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+                                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                                     <span>
                                       {new Date(commit.date).toLocaleDateString()}
                                     </span>
@@ -1050,7 +1101,7 @@ const StudentDetailGit = () => {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-gray-500 dark:text-gray-400">
+                          <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
                             No commits for this repository.
                           </p>
                         )}
@@ -1059,7 +1110,7 @@ const StudentDetailGit = () => {
                   </Accordion>
                 ))
               ) : (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8 text-sm sm:text-base">
                   No Repositories found
                 </div>
               )}
@@ -1070,22 +1121,21 @@ const StudentDetailGit = () => {
         {/* Progress Charts */}
         {/* Tracking Features */}
         {studentRepos.length > 0 && (
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-1 gap-6">
+        <div className="mt-6 sm:mt-8 grid grid-cols-1 md:grid-cols-1 gap-4 sm:gap-6">
           <Card className="col-span-2">
-
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChartIcon className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                <BarChartIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 Commit Frequency
               </CardTitle>
             </CardHeader>
             <CardContent>
               {isLoadingCharts ? (
-                <div className="flex justify-center items-center h-[450px]">
+                <div className="flex justify-center items-center h-[350px] sm:h-[450px]">
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : (
-                <div className="h-[450px]">
+                <div className="h-[350px] sm:h-[450px]">
                   <CommitFrequencyChart data={commitFrequency} />
                 </div>
               )}
@@ -1094,18 +1144,18 @@ const StudentDetailGit = () => {
 
           <Card className="col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PieChartIcon className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                <PieChartIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 Language Usage
               </CardTitle>
             </CardHeader>
             <CardContent>
               {isLoadingCharts ? (
-                <div className="flex justify-center items-center h-[350px]">
+                <div className="flex justify-center items-center h-[300px] sm:h-[350px]">
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : (
-                <div className="h-[350px]">
+                <div className="h-[300px] sm:h-[350px]">
                   <LanguageUsageChart data={languageUsage} />
                 </div>
               )}
@@ -1114,8 +1164,8 @@ const StudentDetailGit = () => {
 
           <Card className="col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ListOrdered className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                <ListOrdered className="w-4 h-4 sm:w-5 sm:h-5" />
                 Most Active Repositories
               </CardTitle>
             </CardHeader>
@@ -1131,7 +1181,6 @@ const StudentDetailGit = () => {
           </Card>
         </div>
         )}
-
       </div>
     </Navbar>
   );

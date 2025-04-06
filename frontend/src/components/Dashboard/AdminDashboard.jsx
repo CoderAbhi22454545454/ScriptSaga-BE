@@ -98,7 +98,7 @@ const AdminDashboard = () => {
     return (
         <Navbar>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col flex-wrap sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Dashboard</h1>
                         <p className="text-muted-foreground mt-1">Welcome back, {user.firstName}</p>
@@ -250,8 +250,8 @@ const AdminDashboard = () => {
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white">
                         <div>
-                            <CardTitle className="text-xl">Teachers</CardTitle>
-                            <CardDescription>View and manage faculty members</CardDescription>
+                            <CardTitle className="text-lg sm:text-xl">Teachers</CardTitle>
+                            <CardDescription className="text-sm sm:text-base">View and manage faculty members</CardDescription>
                         </div>
                         <Button variant="outline" size="sm" onClick={handleManageTeachers} className="w-full sm:w-auto hover:bg-gray-100">
                             <UserPlus className="h-4 w-4 mr-2" />
@@ -259,56 +259,58 @@ const AdminDashboard = () => {
                         </Button>
                     </CardHeader>
                     <CardContent>
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="hover:bg-transparent">
-                                        <TableHead className="font-semibold">Name</TableHead>
-                                        <TableHead className="font-semibold">Email</TableHead>
-                                        <TableHead className="font-semibold">Classes</TableHead>
-                                        <TableHead className="font-semibold">GitHub Username</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {teachers.length > 0 ? (
-                                        teachers.map((teacher) => (
-                                            <TableRow key={teacher._id} className="hover:bg-gray-50 cursor-pointer">
-                                                <TableCell className="font-medium">
-                                                    {teacher.firstName} {teacher.lastName}
-                                                </TableCell>
-                                                <TableCell>{teacher.email}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {teacher.classId && teacher.classId.length > 0 ? 
-                                                            teacher.classId.map(cls => (
-                                                                <Badge 
-                                                                    key={cls._id} 
-                                                                    variant="outline" 
-                                                                    className="bg-gray-50"
-                                                                >
-                                                                    {`${cls.yearOfStudy || cls.className?.split('-')[0] || ''}-${cls.branch || ''}-${cls.division || ''}`}
-                                                                </Badge>
-                                                            )) : 
-                                                            <span className="text-muted-foreground">No classes assigned</span>
+                        <div className="overflow-x-auto -mx-4 sm:mx-0">
+                            <div className="min-w-[800px] sm:min-w-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableHead className="font-semibold text-sm sm:text-base">Name</TableHead>
+                                            <TableHead className="font-semibold text-sm sm:text-base">Email</TableHead>
+                                            <TableHead className="font-semibold text-sm sm:text-base">Classes</TableHead>
+                                            <TableHead className="font-semibold text-sm sm:text-base">GitHub Username</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {teachers.length > 0 ? (
+                                            teachers.map((teacher) => (
+                                                <TableRow key={teacher._id} className="hover:bg-gray-50 cursor-pointer">
+                                                    <TableCell className="font-medium text-sm sm:text-base">
+                                                        {teacher.firstName} {teacher.lastName}
+                                                    </TableCell>
+                                                    <TableCell className="text-sm sm:text-base">{teacher.email}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {teacher.classId && teacher.classId.length > 0 ? 
+                                                                teacher.classId.map(cls => (
+                                                                    <Badge 
+                                                                        key={cls._id} 
+                                                                        variant="outline" 
+                                                                        className="bg-gray-50 text-xs sm:text-sm"
+                                                                    >
+                                                                        {`${cls.yearOfStudy || cls.className?.split('-')[0] || ''}-${cls.branch || ''}-${cls.division || ''}`}
+                                                                    </Badge>
+                                                                )) : 
+                                                                <span className="text-muted-foreground text-sm">No classes assigned</span>
+                                                            }
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm sm:text-base">
+                                                        {teacher.githubUsername || 
+                                                            <span className="text-muted-foreground">Not set</span>
                                                         }
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {teacher.githubUsername || 
-                                                        <span className="text-muted-foreground">Not set</span>
-                                                    }
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground text-sm sm:text-base">
+                                                    No teachers found. Add teachers to get started.
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                                No teachers found. Add teachers to get started.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
