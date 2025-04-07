@@ -15,12 +15,12 @@ import {
 const router = express.Router();
 
 router.post('/create', authMiddelware, createAssignment);
-router.get('/assignment/:id', authMiddelware, getAssignment);
-router.get('/:classId', authMiddelware, getClassAssignments);
-router.put('/:id', authMiddelware, updateAssignment);
-router.delete('/:id', authMiddelware, deleteAssignment);
-router.get('/student/:studentId', authMiddelware, getStudentAssignments);
-router.post('/submit', authMiddelware, submitAssignment);
-router.get('/all', authMiddelware,  getAllAssignments);
+router.get('/assignment/:id', getAssignment);
+router.get('/:classId', getClassAssignments);
+router.put('/:id', updateAssignment);
+router.delete('/:id', deleteAssignment);
+router.get('/student/:studentId', getStudentAssignments);
+router.post('/submit', submitAssignment);
+router.get('/all', getAllAssignments);
 
 export default router;

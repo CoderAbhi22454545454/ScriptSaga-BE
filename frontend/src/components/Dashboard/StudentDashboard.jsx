@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react";
 import StudentSuggestions from "./Github/StudentSuggestions";
 import DetailedStudentProgress from "./Github/studentMetrics/DetailedStudent";
 import { useNavigate } from 'react-router-dom';
-import { Bell, BookOpen, ExternalLink, CheckCircle, Clock, AlertTriangle, ClipboardCopy } from 'lucide-react';
+import { Bell, BookOpen, ExternalLink, CheckCircle, Clock, AlertTriangle, ClipboardCopy, RefreshCw, TrendingUp, Brain, Database, Globe, Server } from 'lucide-react';
 import StudentNotifications from "./StudentNotifications";
 import {
   LineChart,
@@ -37,6 +37,12 @@ import {
   BarChart as BarChartIcon,
   PieChart as PieChartIcon,
   ListOrdered,
+  GitCommit,
+  Star,
+  Code,
+  Target,
+  Trophy,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ImprovementSuggestions from './Github/studentMetrics/ImprovementSuggestions';
@@ -45,6 +51,35 @@ import LearningResources from './Github/studentMetrics/LearningResources';
 import CareerRoadmap from './Github/studentMetrics/CareerRoadmap';
 import { getDomainSuggestions } from '@/utils/domainSuggestions';
 import { Input } from "@/components/ui/input";
+
+const CACHE_EXPIRY = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+const getCachedData = (key) => {
+  try {
+    const cachedItem = localStorage.getItem(key);
+    if (!cachedItem) return null;
+    
+    const { data, timestamp } = JSON.parse(cachedItem);
+    const isExpired = Date.now() - timestamp > CACHE_EXPIRY;
+    
+    return isExpired ? null : data;
+  } catch (error) {
+    console.error('Error retrieving cached data:', error);
+    return null;
+  }
+};
+
+const setCachedData = (key, data) => {
+  try {
+    const cacheItem = {
+      data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(cacheItem));
+  } catch (error) {
+    console.error('Error caching data:', error);
+  }
+};
 
 const GitHubMetrics = ({ stats }) => {
   // Use the summary data from stats
@@ -297,7 +332,126 @@ const getAssignmentStatus = (dueDate, submitted) => {
   };
 };
 
+const ProgressTimeline = ({ studentRepos, studentLeetCode }) => {
+  const milestones = [];
+  
+  // Add GitHub milestones
+  if (studentRepos.length > 0) {
+    const firstCommit = new Date(Math.min(...studentRepos.flatMap(repo => 
+      repo.commits.map(commit => new Date(commit.date))
+    )));
+    
+    milestones.push({
+      date: firstCommit,
+      title: "First GitHub Commit",
+      description: "Started contributing to repositories",
+      icon: <GitCommit className="h-5 w-5" />,
+      type: "github"
+    });
+
+    const firstStar = studentRepos.find(repo => repo.stargazers_count > 0);
+    if (firstStar) {
+      milestones.push({
+        date: new Date(firstStar.created_at),
+        title: "First Starred Repository",
+        description: "Received first star on a repository",
+        icon: <Star className="h-5 w-5" />,
+        type: "github"
+      });
+    }
+  }
+
+  // Add LeetCode milestones
+  if (studentLeetCode?.completeProfile) {
+    const { easySolved, mediumSolved, hardSolved } = studentLeetCode.completeProfile;
+    
+    if (easySolved > 0) {
+      milestones.push({
+        date: new Date(),
+        title: "First Easy Problem Solved",
+        description: `Solved ${easySolved} easy problems`,
+        icon: <Code className="h-5 w-5" />,
+        type: "leetcode"
+      });
+    }
+
+    if (mediumSolved > 0) {
+      milestones.push({
+        date: new Date(),
+        title: "First Medium Problem Solved",
+        description: `Solved ${mediumSolved} medium problems`,
+        icon: <Target className="h-5 w-5" />,
+        type: "leetcode"
+      });
+    }
+
+    if (hardSolved > 0) {
+      milestones.push({
+        date: new Date(),
+        title: "First Hard Problem Solved",
+        description: `Solved ${hardSolved} hard problems`,
+        icon: <Trophy className="h-5 w-5" />,
+        type: "leetcode"
+      });
+    }
+  }
+
+  // Sort milestones by date
+  milestones.sort((a, b) => b.date - a.date);
+
+  return (
+    <div className="relative h-[400px] overflow-y-auto pr-4">
+      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+      {milestones.map((milestone, index) => (
+        <div key={index} className="relative pl-12 pb-8 last:pb-0">
+          <div className="absolute left-0 w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-4 border-blue-500 flex items-center justify-center">
+            {milestone.icon}
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">{milestone.title}</h3>
+              <Badge variant={milestone.type === "github" ? "default" : "secondary"}>
+                {milestone.type === "github" ? "GitHub" : "LeetCode"}
+              </Badge>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">{milestone.description}</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {milestone.date.toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+      ))}
+      {milestones.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <p>No milestones yet. Start contributing to see your progress!</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SkillAssessment = ({ studentRepos, studentLeetCode }) => {
+  const calculateSkillLevel = (metrics) => {
+    const {
+      commits,
+      activeDays,
+      problemSolved,
+      problemDifficulty,
+      repoCount,
+      starCount
+    } = metrics;
+
+    // Weighted scoring system
+    const commitScore = Math.min(commits / 200, 1) * 0.2;
+    const activityScore = Math.min(activeDays / 30, 1) * 0.2;
+    const problemScore = Math.min(problemSolved / 100, 1) * 0.3;
+    const difficultyScore = Math.min(problemDifficulty / 50, 1) * 0.2;
+    const repoScore = Math.min(repoCount / 10, 1) * 0.05;
+    const starScore = Math.min(starCount / 20, 1) * 0.05;
+
+    return Math.round((commitScore + activityScore + problemScore + difficultyScore + repoScore + starScore) * 100);
+  };
+
   const metrics = calculateGitHubMetrics(studentRepos);
   const skillLevel = calculateSkillLevel(metrics.raw);
   const activityLevel = getActivityLevel(metrics.raw.recentActivity.activeDays.size);
@@ -330,7 +484,7 @@ const SkillAssessment = ({ studentRepos, studentLeetCode }) => {
             <div>
               <h3 className="text-lg font-medium mb-2">GitHub Skills</h3>
               <div className={`inline-block px-3 py-1 rounded-full ${getSkillColor(skillLevel)}`}>
-                {skillLevel}
+                {skillLevel}%
               </div>
             </div>
             <div>
@@ -392,6 +546,233 @@ const SkillAssessment = ({ studentRepos, studentLeetCode }) => {
   );
 };
 
+const LearningPathRecommendations = ({ studentRepos, studentLeetCode }) => {
+  // ... LearningPathRecommendations component code ...
+};
+
+// Add this new component for the student profile section
+const StudentProfileSection = ({ student, githubStats, onEditGithubId }) => {
+  const getActivityStatus = () => {
+    const commitsPerWeek = (githubStats.totalCommits || 0) / 4; // Last month's average
+    if (commitsPerWeek >= 10) return { label: 'Very Active', color: 'bg-green-100 text-green-800' };
+    if (commitsPerWeek >= 5) return { label: 'Active', color: 'bg-blue-100 text-blue-800' };
+    if (commitsPerWeek >= 2) return { label: 'Moderate', color: 'bg-yellow-100 text-yellow-800' };
+    return { label: 'Less Active', color: 'bg-red-100 text-red-800' };
+  };
+
+  const activityStatus = getActivityStatus();
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      {/* Profile Info - Takes 5 columns */}
+      <div className="md:col-span-5">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-user"
+              >
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Profile Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="flex items-center space-x-4">
+                <div className="h-20 w-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
+                  {student?.firstName?.[0]}{student?.lastName?.[0]}
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">{student?.firstName} {student?.lastName}</h3>
+                  <p className="text-gray-500">{student?.email}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Badge className={activityStatus.color}>
+                      {activityStatus.label}
+                    </Badge>
+                    <Badge variant="outline" className="bg-purple-100 text-purple-800 border-0">
+                      Student
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <p className="text-sm text-gray-500">Year of Study</p>
+                  <p className="font-medium">{student?.classId?.[0]?.className}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Branch</p>
+                  <p className="font-medium">{student?.classId?.[0]?.branch}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Division</p>
+                  <p className="font-medium">{student?.classId?.[0]?.division}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Roll No</p>
+                  <p className="font-medium">{student?.rollNo || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Activity Stats - Takes 7 columns */}
+      <div className="md:col-span-7">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-activity"
+              >
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+              Development Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* GitHub Stats */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500">GitHub Profile</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-gray-600"
+                      >
+                        <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                        <path d="M9 18c-4.51 2-5-2-7-2" />
+                      </svg>
+                      <span className="font-medium">{student?.githubID}</span>
+                      <button
+                        onClick={onEditGithubId}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-500">Repository Activity</span>
+                      <span className="font-medium">{githubStats.activeRepos}/{githubStats.totalRepos} active</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{ width: `${(githubStats.activeRepos / Math.max(githubStats.totalRepos, 1)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-500">Contribution Level</span>
+                      <span className="font-medium">{githubStats.totalCommits} commits</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full"
+                        style={{ width: `${Math.min((githubStats.totalCommits / 100) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-500">Project Impact</span>
+                      <span className="font-medium">{githubStats.totalStars} stars</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-purple-500 h-2 rounded-full"
+                        style={{ width: `${Math.min((githubStats.totalStars / 10) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity Summary */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-gray-500">Recent Activity</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <GitCommit className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Latest Commit</p>
+                      <p className="text-xs text-gray-500">
+                        {githubStats.lastCommitDate ? new Date(githubStats.lastCommitDate).toLocaleDateString() : 'No recent commits'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <GitBranch className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Active Projects</p>
+                      <p className="text-xs text-gray-500">{githubStats.activeRepos} repositories updated recently</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                    <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                      <Star className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Project Recognition</p>
+                      <p className="text-xs text-gray-500">{githubStats.totalStars} stars received</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 const StudentDashboard = () => {
   const user = useSelector((state) => state.auth.user);
   const isMountedRef = useRef(true);
@@ -422,6 +803,10 @@ const StudentDashboard = () => {
     languageUsage: {},
     mostActiveRepos: [],
     totalCommits: 0,
+    totalRepos: 0,
+    activeRepos: 0,
+    totalStars: 0,
+    totalForks: 0,
     detailedMetrics: null
   });
   const [assignments, setAssignments] = useState([]);
@@ -436,6 +821,16 @@ const StudentDashboard = () => {
   const [newGithubId, setNewGithubId] = useState("");
   const [isUpdatingGithubId, setIsUpdatingGithubId] = useState(false);
   const [isInvalidGithubId, setIsInvalidGithubId] = useState(false);
+  const [dataFetched, setDataFetched] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(false);
+  const [isLoadingStudent, setIsLoadingStudent] = useState(true);
+  const [isLoadingGithubSummary, setIsLoadingGithubSummary] = useState(true);
+  const [isLoadingLeetCode, setIsLoadingLeetCode] = useState(true);
+  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
+  const [progressData, setProgressData] = useState(null);
+  const [classAverageData, setClassAverageData] = useState(null);
+  const [isLoadingProgress, setIsLoadingProgress] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const findStudentRepo = (assignment) => {
     if (!assignment?.studentRepos || !user?._id) return null;
@@ -483,121 +878,178 @@ const StudentDashboard = () => {
   };
 
   const fetchAllData = async () => {
-    if (!user?._id) return;
+    if (!user?._id || (dataFetched && !forceRefresh)) return;
 
     try {
       setLoading(true);
-      setGithubError(null);
-      
-      // Fetch student data
-      const studentResponse = await api.get(`/user/${user._id}`);
-      if (!isMountedRef.current) return;
-      const studentData = studentResponse.data.user;
-      
-      // Set notifications from user data if available
-      if (studentData && studentData.notifications) {
-        setNotifications(studentData.notifications || []);
-        setNotificationsLoading(false);
-      }
+      setIsLoadingStudent(true);
+      setIsLoadingGithubSummary(true);
+      setIsLoadingLeetCode(true);
+      setIsLoadingCharts(true);
+      setError(null);
 
-      // First fetch GitHub summary (fast)
-      let githubSummary = { 
-        totalRepos: 0, 
-        totalCommits: 0, 
-        activeRepos: 0,
-        totalStars: 0,
-        totalForks: 0
-      };
+      // Try to get student data from cache first
+      const cacheKey = `student_data_${user._id}`;
+      let studentData = !forceRefresh ? getCachedData(cacheKey) : null;
       
+      if (!studentData) {
+        // If not in cache or force refresh, fetch from API
+        const response = await api.get(`/user/${user._id}`);
+        studentData = response.data.user;
+        
+        // Cache the result
+        setCachedData(cacheKey, studentData);
+      }
+      
+      setStudentData({
+        student: studentData,
+        classData: studentData.classId?.[0] || null,
+        repos: [],
+        leetCode: null
+      });
+      setIsLoadingStudent(false);
+
       if (studentData.githubID) {
-        try {
-          const summaryResult = await fetchGithubSummary(user._id);
-          if (!isMountedRef.current) return;
-          
-          if (summaryResult.success) {
-            githubSummary = summaryResult.summary;
-            setIsGithubConnected(true);
-          } else {
-            setGithubError(summaryResult.error);
-            setIsGithubConnected(false);
-            toast.error("Failed to fetch GitHub data. Please check your GitHub connection.");
+        // First fetch GitHub summary (fast)
+        let githubSummary = { 
+          totalRepos: 0, 
+          totalCommits: 0, 
+          activeRepos: 0,
+          totalStars: 0,
+          totalForks: 0
+        };
+        
+        // Try to get GitHub summary from cache
+        const summaryCacheKey = `github_summary_${user._id}`;
+        const cachedSummary = !forceRefresh ? getCachedData(summaryCacheKey) : null;
+        
+        if (cachedSummary) {
+          githubSummary = cachedSummary;
+          console.log('Using cached GitHub summary:', githubSummary);
+        } else {
+          const summaryResult = await api.get(`/github/${user._id}/summary`);
+          if (summaryResult.data.success) {
+            githubSummary = summaryResult.data.summary;
+            console.log('Successfully fetched GitHub summary:', githubSummary);
+            
+            // Cache the result
+            setCachedData(summaryCacheKey, githubSummary);
           }
-        } catch (error) {
-          console.error("GitHub API Error:", error);
-          setGithubError(error.message || "Failed to connect to GitHub");
-          setIsGithubConnected(false);
-          toast.error("Failed to connect to GitHub. Please check your GitHub connection.");
         }
-      }
-      
-      // Fetch GitHub repos (only first page for detailed view)
-      let repos = [];
-      let leetCodeData = null;
-      
-      if (studentData.githubID) {
-        const studentRepo = await api.get(`/github/${user._id}/repos`);
-        if (!isMountedRef.current) return;
-        repos = studentRepo.data.repos || [];
+        
+        setGithubStats(prev => ({
+          ...prev,
+          totalRepos: githubSummary.totalRepos || 0,
+          totalCommits: githubSummary.totalCommits || 0,
+          activeRepos: githubSummary.activeRepos || 0,
+          totalStars: githubSummary.totalStars || 0,
+          totalForks: githubSummary.totalForks || 0
+        }));
+        setIsGithubConnected(true);
+        setIsLoadingGithubSummary(false);
+        
+        // Then fetch detailed repo data
+        const reposCacheKey = `github_repos_${user._id}`;
+        let reposData = !forceRefresh ? getCachedData(reposCacheKey) : null;
+        
+        if (!reposData) {
+          const reposResponse = await api.get(`/github/${user._id}/repos`);
+          if (reposResponse.data.success) {
+            reposData = reposResponse.data.repos;
+            // Cache the result
+            setCachedData(reposCacheKey, reposData);
+          }
+        }
+        
+        setStudentRepos(reposData);
+        
+        if (reposData.length > 0) {
+          const processedStats = {
+            commitFrequency: processCommitFrequency(reposData),
+            languageUsage: processLanguageUsage(reposData),
+            mostActiveRepos: getMostActiveRepos(reposData),
+            totalCommits: githubSummary.totalCommits || reposData.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
+            totalRepos: githubSummary.totalRepos || reposData.length,
+            activeRepos: githubSummary.activeRepos || reposData.filter(repo => repo.commits?.length > 0).length,
+            totalStars: githubSummary.totalStars || reposData.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0),
+            totalForks: githubSummary.totalForks || reposData.reduce((sum, repo) => sum + (repo.forks_count || 0), 0),
+            detailedMetrics: calculateGitHubMetrics(reposData, githubSummary)
+          };
+          
+          setGithubStats(processedStats);
+          setCommitFrequency(processedStats.commitFrequency);
+          setLanguageUsage(processedStats.languageUsage);
+          setMostActiveRepos(processedStats.mostActiveRepos);
+          setIsLoadingCharts(false);
+        } else {
+          setGithubStats(prev => ({
+            ...prev,
+            totalRepos: githubSummary.totalRepos || 0,
+            totalCommits: githubSummary.totalCommits || 0,
+            activeRepos: githubSummary.activeRepos || 0
+          }));
+        }
+      } else {
+        setGithubError("GitHub username not configured");
+        setIsGithubConnected(false);
       }
 
-      // Process GitHub stats using both summary and detailed data
-      const languageData = processLanguageUsage(repos);
-      
-      const stats = {
-        languageUsage: languageData,
-        mostActiveRepos: getMostActiveRepos(repos),
-        totalCommits: githubSummary.totalCommits || repos.reduce((sum, repo) => sum + (repo.commits?.length || 0), 0),
-        totalRepos: githubSummary.totalRepos || repos.length,
-        activeRepos: githubSummary.activeRepos || repos.filter(repo => repo.commits?.length > 0).length,
-        totalStars: githubSummary.totalStars || repos.reduce((sum, repo) => sum + (repo.stargazers_count || 0), 0),
-        totalForks: githubSummary.totalForks || repos.reduce((sum, repo) => sum + (repo.forks_count || 0), 0),
-        detailedMetrics: calculateGitHubMetrics(repos, githubSummary)
-      };
-
-      // Get LeetCode data if available
+      // Fetch LeetCode data with caching
       if (studentData.leetCodeID) {
-        try {
+        const leetCodeCacheKey = `leetcode_data_${user._id}`;
+        let leetCodeData = !forceRefresh ? getCachedData(leetCodeCacheKey) : null;
+        
+        if (!leetCodeData) {
           const leetCodeResponse = await api.get(`/lcodeprofile/${user._id}`);
-          if (!isMountedRef.current) return;
           leetCodeData = leetCodeResponse.data;
+          if (leetCodeData) {
+            setCachedData(leetCodeCacheKey, leetCodeData);
+          }
+        }
+        
+        setStudentLeetCode(leetCodeData);
+        setIsLoadingLeetCode(false);
+      }
+
+      // Fetch assignments with caching
+      const assignmentsCacheKey = `assignments_${user._id}`;
+      let assignmentsData = !forceRefresh ? getCachedData(assignmentsCacheKey) : null;
+
+      if (!assignmentsData) {
+        const assignmentsResponse = await api.get(`/assignment/student/${user._id}`);
+        assignmentsData = assignmentsResponse.data.assignments || [];
+        setCachedData(assignmentsCacheKey, assignmentsData);
+      }
+
+      setAssignments(assignmentsData);
+      setAssignmentsLoading(false);
+
+      // Fetch notifications with caching
+      const notificationsCacheKey = `notifications_${user._id}`;
+      let notificationsData = !forceRefresh ? getCachedData(notificationsCacheKey) : null;
+
+      if (!notificationsData) {
+        try {
+          const notificationsResponse = await api.get(`/notifications/${user._id}`);
+          notificationsData = notificationsResponse.data.notifications || [];
+          setCachedData(notificationsCacheKey, notificationsData);
         } catch (error) {
-          console.error("Error fetching LeetCode data:", error);
+          console.error('Error fetching notifications:', error);
+          notificationsData = [];
         }
       }
 
-      // Update all state at once to minimize re-renders
-      if (isMountedRef.current) {
-        setStudentData({
-          student: studentData,
-          classData: studentData.classId?.[0] || null,
-          repos: repos,
-          leetCode: leetCodeData
-        });
-
-        setGithubStats(stats);
-      }
-
-      // Fetch assignments
-      try {
-        const assignmentsResponse = await api.get(`/assignment/student/${user._id}`);
-        if (!isMountedRef.current) return;
-        setAssignments(assignmentsResponse.data.assignments || []);
-      } catch (error) {
-        console.error("Error fetching assignments:", error);
-      } finally {
-        if (isMountedRef.current) setAssignmentsLoading(false);
-      }
+      setNotifications(notificationsData);
+      setNotificationsLoading(false);
 
     } catch (error) {
-      if (isMountedRef.current) {
-        console.error("Error fetching data:", error);
-        setError(error.message || "Failed to load data");
-        toast.error("Failed to load dashboard data");
-      }
+      console.error("Error fetching data:", error);
+      setError(error.message || "Failed to load data");
+      toast.error("Failed to load dashboard data");
     } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
+      setLoading(false);
+      setDataFetched(true);
+      setForceRefresh(false);
     }
   };
 
@@ -696,6 +1148,18 @@ const StudentDashboard = () => {
     }
   };
 
+  const refreshData = async () => {
+    try {
+      setIsRefreshing(true);
+      setForceRefresh(true);
+      toast.info("Refreshing data...");
+      await fetchAllData();
+    } finally {
+      setIsRefreshing(false);
+      setForceRefresh(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -709,436 +1173,26 @@ const StudentDashboard = () => {
   return (
     <Navbar>
       <div className="container mx-auto p-6">
-        {/* GitHub Connection Status */}
-        {githubError && (
-          <Card className="mb-6 border-red-200 bg-red-50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
-                <div>
-                  <h3 className="font-medium text-red-700">GitHub Connection Issue</h3>
-                  <p className="text-sm text-red-600">{githubError}</p>
-                </div>
-              </div>
-              
-              {isEditingGithubId ? (
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="text"
-                      placeholder="Enter your GitHub username"
-                      value={newGithubId}
-                      onChange={(e) => setNewGithubId(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingGithubId(false)}
-                      disabled={isUpdatingGithubId}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleUpdateGithubId}
-                      disabled={isUpdatingGithubId}
-                    >
-                      {isUpdatingGithubId ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Updating...
-                        </>
-                      ) : (
-                        "Update"
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-red-500">
-                    Make sure to enter your exact GitHub username
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsEditingGithubId(true);
-                      setNewGithubId(studentData.student?.githubID || "");
-                    }}
-                  >
-                    Update GitHub ID
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate('/settings')}
-                  >
-                    Go to Settings
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-7">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-user"
-                  >
-                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                  Student Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {(githubError || isInvalidGithubId) ? (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle className="h-5 w-5 text-red-500" />
-                        <h3 className="font-medium text-red-700">GitHub ID Issue</h3>
-                      </div>
-                      <p className="text-sm text-red-600 mb-3">
-                        Hey, your GitHub ID is invalid or not found. Please update it to view your GitHub statistics.
-                      </p>
-                      {isEditingGithubId ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="text"
-                            placeholder="Enter your GitHub username"
-                            value={newGithubId}
-                            onChange={(e) => setNewGithubId(e.target.value)}
-                            className="flex-1"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsEditingGithubId(false)}
-                            disabled={isUpdatingGithubId}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={handleUpdateGithubId}
-                            disabled={isUpdatingGithubId}
-                          >
-                            {isUpdatingGithubId ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Updating...
-                              </>
-                            ) : (
-                              "Update"
-                            )}
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => {
-                            setIsEditingGithubId(true);
-                            setNewGithubId(studentData.student?.githubID || "");
-                          }}
-                          className="bg-red-500 hover:bg-red-600"
-                        >
-                          Update GitHub ID
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="lucide lucide-github"
-                        >
-                          <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-                          <path d="M9 18c-4.51 2-5-2-7-2" />
-                        </svg>
-                        <span className="font-medium">GitHub ID</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span>{studentData.student?.githubID || "Not connected"}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setIsEditingGithubId(true);
-                            setNewGithubId(studentData.student?.githubID || "");
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-lg">
-                    <span className="font-semibold">Name:</span>{" "}
-                    {studentData.student?.firstName || "No data"}{" "}
-                    {studentData.student?.lastName}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Email:</span>{" "}
-                    {studentData.student?.email || "No Data"}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Year of Study:</span>{" "}
-                    {studentData.student?.classId?.[0]?.className?.split('-')?.[0] || "No class found"}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Branch:</span>{" "}
-                    {studentData.student?.classId?.[0]?.branch || "No class found"}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Division:</span>{" "}
-                    {studentData.student?.classId?.[0]?.division || "No class found"}
-                  </p>
-                </div>
-                <Badge variant="outline" className="mt-4 bg-green-300 border-0">
-                  Student
-                </Badge>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-git-branch"
-                  >
-                    <line x1="6" x2="6" y1="3" y2="15" />
-                    <circle cx="18" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M18 9a9 9 0 0 1-9 9" />
-                  </svg>
-                  GitHub Statistics
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p>
-                    <span className="font-semibold">Total Repositories:</span>{" "}
-                    {githubStats.totalRepos || 0}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Total Commits:</span>{" "}
-                    {githubStats.totalCommits || 0}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-code"
-                >
-                  <polyline points="16 18 22 12 16 6" />
-                  <polyline points="8 6 2 12 8 18" />
-                </svg>
-                LeetCode Statistics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {studentData.leetCode ? (
-                studentData.leetCode?.completeProfile ? (
-                  <>
-                    <div className="user-profile mb-10 mt-4 bg-gray-100 p-4 rounded-lg">
-                      <h1 className="text-md font-semibold">Basic Profile</h1>
-                      <p className="text-sm mt-4">
-                        <span className="font-semibold">Username:</span>{" "}
-                        {studentData.leetCode.basicProfile.username}
-                      </p>
-                      <p className="mt-2 text-sm">
-                        <span className="font-medium">Rank:</span>{" "}
-                        {studentData.leetCode.basicProfile.ranking}
-                      </p>
-                      <p className="mt-2 text-sm">
-                        <span className="font-medium">Contribution:</span>{" "}
-                        {studentData.leetCode.basicProfile.reputation}
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-blue-500 text-white p-4 rounded-lg">
-                        <p className="text-sm font-medium">Total Solved</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {studentData.leetCode.completeProfile.solvedProblem ||
-                            0}
-                        </p>
-                      </div>
-                      <div className="bg-green-500 text-white p-4 rounded-lg">
-                        <p className="text-sm font-medium">Easy Solved</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {studentData.leetCode.completeProfile.easySolved || 0}
-                        </p>
-                      </div>
-                      <div className="bg-yellow-500 text-white p-4 rounded-lg">
-                        <p className="text-sm font-medium">Medium Solved</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {studentData.leetCode.completeProfile.mediumSolved ||
-                            0}
-                        </p>
-                      </div>
-                      <div className="bg-red-500 text-white p-4 rounded-lg">
-                        <p className="text-sm font-medium">Hard Solved</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {studentData.leetCode.completeProfile.hardSolved || 0}
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-center text-gray-500">
-                    No LeetCode data available
-                  </p>
-                )
-              ) : (
-                <p className="text-center text-gray-500">
-                  User has not linked their LeetCode account
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-folder"
-                >
-                  <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
-                </svg>
-                Repositories
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {studentData.repos.length > 0 ? (
-                <div className="h-[450px] overflow-y-auto">
-                  <Accordion type="single" collapsible>
-                    {studentData.repos.map((repo, index) => (
-                      <AccordionItem value={`item-${index}`} key={index}>
-                        <AccordionTrigger>
-                          <div className="flex flex-col items-start text-left w-full">
-                            <h3 className="font-semibold text-lg">
-                              {repo.name}
-                            </h3>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {repo.description || "No description"}
-                            </p>
-                            <div className="flex items-center mt-2 space-x-4">
-                              <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                {repo.commits.length} commits
-                              </span>
-                              <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                {repo.language || "Unknown"}
-                              </span>
-                            </div>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          {repo.commits && repo.commits.length > 0 ? (
-                            <div className="space-y-4">
-                              {repo.commits.map((commit, commitIndex) => (
-                                <div
-                                  key={commitIndex}
-                                  className="bg-gray-100 p-3 rounded-lg shadow-sm"
-                                >
-                                  <p className="font-medium text-lg mb-2">
-                                    {commit.message}
-                                  </p>
-                                  <div className="flex justify-between items-center text-sm text-gray-500">
-                                    <span>
-                                      {new Date(
-                                        commit.date
-                                      ).toLocaleDateString()}
-                                    </span>
-                                    <a
-                                      href={commit.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-500 hover:underline"
-                                    >
-                                      View on GitHub
-                                    </a>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-gray-500">
-                              No commits for this repository.
-                            </p>
-                          )}
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                  No Repositories found
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <div className="flex justify-end mb-4">
+          <Button
+            onClick={refreshData}
+            disabled={isRefreshing}
+            className="w-32 h-10 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="text-sm">{isRefreshing ? 'Refreshing' : 'Refresh'}</span>
+          </Button>
         </div>
+
+        {/* Replace the old Student Information and GitHub Statistics sections */}
+        <StudentProfileSection
+          student={studentData.student}
+          githubStats={githubStats}
+          onEditGithubId={() => {
+            setIsEditingGithubId(true);
+            setNewGithubId(studentData.student?.githubID || "");
+          }}
+        />
 
         <div className="space-y-6">
           {/* Student Info Card */}
@@ -1378,18 +1432,32 @@ const StudentDashboard = () => {
             </CardHeader>
             <CardContent>
               {notificationsLoading ? (
-                <div className="flex justify-center p-4">
+                <div className="flex justify-center items-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : (
-                <>
-                  <StudentNotifications notifications={notifications} />
-                  {process.env.NODE_ENV === 'development' && notifications.length === 0 && (
-                    <p className="text-xs text-gray-400 mt-2">
-                      Debug: Notifications source: {studentData.student?.notifications ? 'User data' : 'Separate API call'}
-                    </p>
-                  )}
-                </>
+                <StudentNotifications 
+                  notifications={notifications.map(notification => {
+                    // Get teacher name safely
+                    const teacherName = notification.teacher 
+                      ? `${notification.teacher.firstName || ''} ${notification.teacher.lastName || ''}`.trim() || 'Teacher'
+                      : notification.teacherName || 'Teacher';
+
+                    // Get class name safely
+                    const className = notification.class?.name 
+                      || studentData.student?.classId?.[0]?.className 
+                      || notification.className 
+                      || 'Class';
+
+                    return {
+                      ...notification,
+                      teacherName,
+                      className,
+                      date: notification.createdAt || notification.date || new Date(),
+                      type: notification.type || 'Teacher Feedback'
+                    };
+                  })} 
+                />
               )}
             </CardContent>
           </Card>
@@ -1420,10 +1488,90 @@ const StudentDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <MostActiveReposList repos={githubStats.mostActiveRepos} />
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <MostActiveReposList repos={githubStats?.mostActiveRepos || []} />
+              )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Add Progress Timeline */}
+        <div className="mt-6 sm:mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
+                Progress Timeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <ProgressTimeline 
+                  studentRepos={studentRepos} 
+                  studentLeetCode={studentLeetCode} 
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Add Skill Assessment */}
+        <div className="mt-6 sm:mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                <Brain className="h-5 w-5 sm:h-6 sm:w-6" />
+                Skill Assessment
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingCharts ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <SkillAssessment 
+                  studentRepos={studentRepos} 
+                  studentLeetCode={studentLeetCode} 
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Add Learning Path Recommendations */}
+        {githubStats.languageUsage && Object.keys(githubStats.languageUsage).length > 0 && (
+          <div className="mt-6 sm:mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
+                  Learning Path Recommendations
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoadingCharts ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
+                  <LearningPathRecommendations 
+                    studentRepos={studentRepos} 
+                    studentLeetCode={studentLeetCode} 
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </Navbar>
   );
@@ -1472,30 +1620,40 @@ const LanguageUsageChart = ({ data }) => {
   );
 };
 
-const MostActiveReposList = ({ repos }) => (
-  <div className="space-y-4">
-    {repos.map((repo, index) => (
-      <div
-        key={index}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{repo.name}</h3>
-          <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
-            {repo.commitCount} commits
-          </span>
-        </div>
-        <div className="mt-2">
-          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-            <div
-              className="bg-blue-300 h-2.5 rounded-full"
-              style={{
-                width: `${(repo.commitCount / repos[0].commitCount) * 100}%`,
-              }}
-            ></div>
+const MostActiveReposList = ({ repos = [] }) => {
+  if (!repos || repos.length === 0) {
+    return (
+      <div className="text-center py-6 text-gray-500">
+        No active repositories found
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {repos.map((repo, index) => (
+        <div
+          key={index}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">{repo.name}</h3>
+            <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
+              {repo.commitCount} commits
+            </span>
+          </div>
+          <div className="mt-2">
+            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+              <div
+                className="bg-blue-300 h-2.5 rounded-full"
+                style={{
+                  width: `${(repo.commitCount / repos[0].commitCount) * 100}%`,
+                }}
+              ></div>
+            </div>
           </div>
         </div>
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+};
