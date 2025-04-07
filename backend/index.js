@@ -26,7 +26,9 @@ app.use(cors({
         'http://localhost:5000',
         'https://script-saga.vercel.app',
         'https://scriptsaga.vercel.app',
-        'https://scriptsaga-production.up.railway.app'
+        'https://scriptsaga-production.up.railway.app',
+        'https://strangerscript.vercel.app',
+        'https://strangerscript-production.up.railway.app'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],

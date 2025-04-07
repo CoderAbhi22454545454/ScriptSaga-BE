@@ -289,7 +289,7 @@ export const searchUser = async (req, res) => {
 
 export const createStudent = async (req, res) => {
   try {
-    const { firstName, lastName, email, rollNo, classId, githubID, leetCodeID } = req.body;
+    const { firstName, lastName, email, rollNo, classId, githubID, leetCodeID, password } = req.body;
     
     // Check if email already exists
     const existingUser = await User.findOne({ email });
@@ -300,7 +300,10 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    // Create new student with default password
+    // Hash the provided password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create new student with hashed password
     const student = new User({
       firstName,
       lastName,
@@ -310,7 +313,7 @@ export const createStudent = async (req, res) => {
       githubID,
       leetCodeID,
       role: 'student',
-      password: 'defaultPassword123'
+      password: hashedPassword
     });
 
     await student.save();
