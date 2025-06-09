@@ -74,6 +74,7 @@ const setCachedData = (key, data) => {
 
 const StudentDetailGit = () => {
   const { userId } = useParams();
+  const user = useSelector((state) => state.auth.user); // Get current user data including role
   const [student, setStudent] = useState();
   const [classData, setClassData] = useState();
   const [studentRepos, setStudentRepos] = useState([]);
@@ -673,7 +674,11 @@ const StudentDetailGit = () => {
           </CardContent>
         </Card>
 
-        <MessageStudent studentId={student._id} />
+          
+        {/* Only show MessageStudent component for teachers */}
+        {user?.role === 'teacher' && (
+          <MessageStudent studentId={student._id} />
+        )}
 
         {/* Modified StudentProgressDashboard with better error handling */}
         {student.githubID && (
