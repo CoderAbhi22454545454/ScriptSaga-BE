@@ -146,6 +146,15 @@ const TeacherClassView = () => {
 
   const handleCreateAssignment = async (assignmentData) => {
     try {
+      console.log('Current user:', user);
+      console.log('User ID:', user?._id);
+      console.log('User role:', user?.role);
+      
+      if (!user?._id) {
+        toast.error('User not authenticated');
+        return;
+      }
+
       // First get all students in the class
       const studentsResponse = await api.get(`/class/classes/${classId}/students`);
       const students = studentsResponse.data.students || [];
@@ -156,22 +165,43 @@ const TeacherClassView = () => {
         submitted: false
       }));
       
-      // Add student repos to assignment data
-      const response = await api.post('/assignment/create', {
+      const requestData = {
         ...assignmentData,
         classId,
-        teacherId: user._id,
+        teacherId: user._id, // Include teacherId from Redux state
         studentRepos: studentRepos
-      });
+      };
+      
+      console.log('Creating assignment with data:', requestData);
+      
+      // Add student repos to assignment data
+      const response = await api.post('/assignment/create', requestData);
+      
+      console.log('Assignment creation response:', response.data);
       
       if (response.data.success) {
         toast.success('Assignment created successfully');
         fetchAssignments();
         setIsAssignmentDialogOpen(false);
+      } else {
+        toast.error(response.data.message || 'Failed to create assignment');
       }
     } catch (error) {
-      console.error('Assignment creation error:', error.response?.data || error);
-      toast.error(error.response?.data?.message || 'Failed to create assignment');
+      console.error('Assignment creation error full details:', {
+        error: error,
+        response: error.response,
+        data: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
+      
+      if (error.response?.status === 401) {
+        toast.error('Authentication failed. Please login again.');
+      } else if (error.response?.status === 403) {
+        toast.error('You do not have permission to create assignments.');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to create assignment');
+      }
     }
   };
 

@@ -14,13 +14,16 @@ import {
 
 const router = express.Router();
 
-router.post('/create',  createAssignment);
+// Specific routes first (to avoid conflicts with parameterized routes)
+router.post('/create', createAssignment);
+router.post('/submit', submitAssignment);
+router.get('/all', getAllAssignments);
+router.get('/student/:studentId', getStudentAssignments);
 router.get('/assignment/:id', getAssignment);
+
+// Parameterized routes last
 router.get('/:classId', getClassAssignments);
 router.put('/:id', updateAssignment);
 router.delete('/:id', deleteAssignment);
-router.get('/student/:studentId', getStudentAssignments);
-router.post('/submit', submitAssignment);
-router.get('/all', getAllAssignments);
 
 export default router;

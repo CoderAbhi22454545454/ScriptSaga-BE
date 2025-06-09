@@ -6,21 +6,62 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Helper function to ensure student repo entry exists
+const ensureStudentRepoEntry = async (assignment, studentId) => {
+  let studentRepoIndex = assignment.studentRepos.findIndex(
+    repo => repo.studentId.toString() === studentId
+  );
+  
+  if (studentRepoIndex === -1) {
+    console.log(`Creating new student repo entry for studentId: ${studentId}`);
+    
+    // Verify student exists
+    const student = await User.findById(studentId);
+    if (!student) {
+      throw new Error('Student not found');
+    }
+    
+    // Add new student repo entry
+    assignment.studentRepos.push({
+      studentId: studentId,
+      submitted: false,
+      repoUrl: '',
+      submissionDate: null
+    });
+    
+    studentRepoIndex = assignment.studentRepos.length - 1;
+  }
+  
+  return studentRepoIndex;
+};
+
 export const createAssignment = async (req, res) => {
   try {
     console.log('Request body:', req.body);
-    console.log('User from auth middleware:', req.user);
     
-    const { title, description, dueDate, points, repoUrl, classId } = req.body;
-    const teacherId = req.user?.userId;
+    const { title, description, dueDate, points, repoUrl, classId, teacherId } = req.body;
     
-    console.log('Teacher ID:', teacherId);
+    console.log('Teacher ID from request body:', teacherId);
+
+    if (!teacherId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Teacher ID is required'
+      });
+    }
 
     // Get all students in the class
     const classData = await Class.findById(classId).populate({
       path: 'students',
       model: 'User'
     });
+    
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Class not found'
+      });
+    }
     
     // Create assignment
     const assignment = new Assignment({
@@ -34,15 +75,23 @@ export const createAssignment = async (req, res) => {
       studentRepos: []
     });
 
-    // Add entry for each student
-    for (const student of classData.students) {
-      assignment.studentRepos.push({
-        studentId: student._id,
-        submitted: false
-      });
+    // Add entry for each student, ensuring they exist and are valid
+    if (classData.students && classData.students.length > 0) {
+      for (const student of classData.students) {
+        if (student && student._id) {
+          assignment.studentRepos.push({
+            studentId: student._id,
+            submitted: false,
+            repoUrl: '',
+            submissionDate: null
+          });
+        }
+      }
     }
 
     await assignment.save();
+
+    console.log(`Assignment created with ${assignment.studentRepos.length} student entries`);
 
     res.status(201).json({
       success: true,
@@ -50,6 +99,7 @@ export const createAssignment = async (req, res) => {
       assignment
     });
   } catch (error) {
+    console.error('Error creating assignment:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -160,19 +210,35 @@ export const deleteAssignment = async (req, res) => {
 export const getStudentAssignments = async (req, res) => {
   try {
     const { studentId } = req.params;
+    console.log('Fetching assignments for student ID:', studentId);
     
     // First, get the student to find their class
     const student = await User.findById(studentId);
     if (!student) {
+      console.log('Student not found with ID:', studentId);
       return res.status(404).json({
         success: false,
         message: 'Student not found'
       });
     }
     
-    // Get the student's class ID
-    const classId = student.classId;
+    console.log('Found student:', { 
+      id: student._id, 
+      name: `${student.firstName} ${student.lastName}`,
+      classId: student.classId,
+      classIdType: Array.isArray(student.classId) ? 'array' : typeof student.classId
+    });
+    
+    // Get the student's class ID - handle both array and single value
+    let classId = student.classId;
+    if (Array.isArray(classId)) {
+      classId = classId[0]; // Take the first class if it's an array
+    }
+    
+    console.log('Using classId for assignment lookup:', classId);
+    
     if (!classId) {
+      console.log('No classId found for student');
       return res.json({
         success: true,
         assignments: []
@@ -188,6 +254,8 @@ export const getStudentAssignments = async (req, res) => {
     .populate('studentRepos.studentId', 'firstName lastName rollNo')
     .sort({ dueDate: 1 });
     
+    console.log(`Found ${assignments.length} assignments for classId:`, classId);
+    
     // Process assignments to add student repo info if it doesn't exist
     const processedAssignments = assignments.map(assignment => {
       const assignmentObj = assignment.toObject();
@@ -196,6 +264,8 @@ export const getStudentAssignments = async (req, res) => {
       const existingRepo = assignmentObj.studentRepos?.find(
         repo => repo.studentId._id.toString() === studentId
       );
+      
+      console.log(`Assignment ${assignment.title}: existing repo for student:`, !!existingRepo);
       
       // If not, add a placeholder entry
       if (!existingRepo) {
@@ -218,6 +288,8 @@ export const getStudentAssignments = async (req, res) => {
       
       return assignmentObj;
     });
+    
+    console.log('Returning processed assignments:', processedAssignments.length);
     
     res.json({
       success: true,
@@ -244,17 +316,8 @@ export const submitAssignment = async (req, res) => {
       });
     }
     
-    // Find the student's repo in the assignment
-    const studentRepoIndex = assignment.studentRepos.findIndex(
-      repo => repo.studentId.toString() === studentId
-    );
-    
-    if (studentRepoIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'Student repository not found for this assignment'
-      });
-    }
+    // Ensure student repo entry exists
+    const studentRepoIndex = await ensureStudentRepoEntry(assignment, studentId);
     
     // Update the submission status
     assignment.studentRepos[studentRepoIndex].submitted = true;

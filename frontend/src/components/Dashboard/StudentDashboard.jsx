@@ -1016,11 +1016,46 @@ const StudentDashboard = () => {
       let assignmentsData = !forceRefresh ? getCachedData(assignmentsCacheKey) : null;
 
       if (!assignmentsData) {
-        const assignmentsResponse = await api.get(`/assignment/student/${user._id}`);
-        assignmentsData = assignmentsResponse.data.assignments || [];
-        setCachedData(assignmentsCacheKey, assignmentsData);
+        try {
+          console.log('Fetching assignments for user:', user._id);
+          console.log('API endpoint:', `/assignment/student/${user._id}`);
+          const assignmentsResponse = await api.get(`/assignment/student/${user._id}`);
+          console.log('Full assignments API response:', assignmentsResponse);
+          console.log('Response status:', assignmentsResponse.status);
+          console.log('Response data:', assignmentsResponse.data);
+          
+          if (assignmentsResponse.data.success) {
+            assignmentsData = assignmentsResponse.data.assignments || [];
+            console.log('Successfully fetched assignments:', assignmentsData.length);
+          } else {
+            console.error('API returned success: false', assignmentsResponse.data);
+            assignmentsData = [];
+          }
+          
+          console.log('Processed assignments data:', assignmentsData);
+          setCachedData(assignmentsCacheKey, assignmentsData);
+        } catch (error) {
+          console.error('Error fetching assignments:', error);
+          console.error('Error details:', {
+            message: error.message,
+            response: error.response,
+            status: error.response?.status,
+            data: error.response?.data
+          });
+          assignmentsData = [];
+          
+          if (error.response?.status === 404) {
+            console.log('Student not found or has no assignments');
+          } else if (error.response?.status === 500) {
+            console.log('Server error while fetching assignments');
+          }
+        }
+      } else {
+        console.log('Using cached assignments data:', assignmentsData);
       }
 
+      console.log('Final assignments data being set:', assignmentsData);
+      console.log('Number of assignments:', assignmentsData.length);
       setAssignments(assignmentsData);
       setAssignmentsLoading(false);
 
@@ -1085,6 +1120,12 @@ const StudentDashboard = () => {
         toast.error("Please enter a valid GitHub repository URL");
         return;
       }
+
+      console.log('Submitting assignment:', {
+        assignmentId,
+        studentId: user._id,
+        solutionUrl: urlToSubmit
+      });
       
       const response = await api.post('/assignment/submit', {
         assignmentId,
@@ -1092,13 +1133,30 @@ const StudentDashboard = () => {
         solutionUrl: urlToSubmit
       });
       
+      console.log('Submit response:', response.data);
+      
       if (response.data.success) {
         toast.success('Assignment marked as submitted');
-        fetchAllData(); // Refresh all data to get updated assignment status
+        // Clear the URL from state
+        setSolutionUrls(prev => ({
+          ...prev,
+          [assignmentId]: ''
+        }));
+        // Refresh assignments data
+        fetchAllData();
+      } else {
+        toast.error(response.data.message || 'Failed to submit assignment');
       }
     } catch (error) {
       console.error('Error submitting assignment:', error);
-      toast.error('Failed to submit assignment');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      const errorMessage = error.response?.data?.message || 'Failed to submit assignment';
+      toast.error(errorMessage);
     }
   };
 
@@ -1152,8 +1210,27 @@ const StudentDashboard = () => {
     try {
       setIsRefreshing(true);
       setForceRefresh(true);
+      
+      // Clear specific caches to ensure fresh data
+      const cacheKeys = [
+        `student_data_${user._id}`,
+        `assignments_${user._id}`,
+        `notifications_${user._id}`,
+        `github_summary_${user._id}`,
+        `github_repos_${user._id}`,
+        `leetcode_data_${user._id}`
+      ];
+      
+      cacheKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
       toast.info("Refreshing data...");
       await fetchAllData();
+      toast.success("Data refreshed successfully!");
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error("Failed to refresh data");
     } finally {
       setIsRefreshing(false);
       setForceRefresh(false);
@@ -1278,8 +1355,11 @@ const StudentDashboard = () => {
                 </div>
               ) : assignments.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {console.log('Rendering assignments:', assignments)}
                   {assignments.map((assignment) => {
+                    console.log('Rendering assignment:', assignment);
                     const studentRepo = findStudentRepo(assignment);
+                    console.log('Student repo for assignment:', studentRepo);
                     const status = getAssignmentStatus(
                       assignment.dueDate, 
                       studentRepo?.submitted || false
