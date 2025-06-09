@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const LeetCode_BaseUrl = 'https://alfa-leetcode-api-production-1943.up.railway.app';
+const LeetCode_BaseUrl = 'https://leetcode-api-rk4o.onrender.com';
 
 const leetCodeAPI = axios.create({
     baseURL: LeetCode_BaseUrl
