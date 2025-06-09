@@ -284,26 +284,45 @@ export const getTeacherClasses = async (req, res) => {
       return map;
     }, {});
     
-    // Get assignment stats in one query
-    const assignmentStats = await Class.aggregate([
-      { $match: { _id: { $in: teacher.classId } } },
-      { $lookup: {
-          from: 'assignments',
-          localField: 'assignments',
-          foreignField: '_id',
-          as: 'assignmentDetails'
+    // Import Assignment model to fetch assignment stats
+    const { Assignment } = await import('../models/Assignment.model.js');
+    
+    // Get assignment stats for all teacher's classes
+    const assignmentStats = await Assignment.aggregate([
+      { $match: { classId: { $in: teacher.classId } } },
+      { $group: {
+          _id: '$classId',
+          totalAssignments: { $sum: 1 },
+          activeAssignments: {
+            $sum: {
+              $cond: {
+                if: { $gt: ['$dueDate', new Date()] },
+                then: 1,
+                else: 0
+              }
+            }
+          },
+          // Calculate completion rate based on submissions
+          totalSubmissions: { $sum: { $size: '$studentRepos' } },
+          completedSubmissions: {
+            $sum: {
+              $size: {
+                $filter: {
+                  input: '$studentRepos',
+                  as: 'repo',
+                  cond: { $eq: ['$$repo.submitted', true] }
+                }
+              }
+            }
+          }
         }
       },
-      { $project: {
-          _id: 1,
-          assignmentCount: { $size: '$assignmentDetails' },
-          activeAssignments: {
-            $size: {
-              $filter: {
-                input: '$assignmentDetails',
-                as: 'assignment',
-                cond: { $gt: ['$$assignment.dueDate', new Date()] }
-              }
+      { $addFields: {
+          completionRate: {
+            $cond: {
+              if: { $gt: ['$totalSubmissions', 0] },
+              then: { $multiply: [{ $divide: ['$completedSubmissions', '$totalSubmissions'] }, 100] },
+              else: 0
             }
           }
         }
@@ -313,8 +332,9 @@ export const getTeacherClasses = async (req, res) => {
     // Create a map of classId to assignment stats
     const assignmentStatsMap = assignmentStats.reduce((map, item) => {
       map[item._id.toString()] = {
-        assignmentCount: item.assignmentCount,
-        activeAssignments: item.activeAssignments
+        totalAssignments: item.totalAssignments,
+        activeAssignments: item.activeAssignments,
+        completionRate: Math.round(item.completionRate)
       };
       return map;
     }, {});
@@ -322,15 +342,22 @@ export const getTeacherClasses = async (req, res) => {
     // Combine all the data
     const classesWithStats = classes.map(cls => {
       const classId = cls._id.toString();
-      const stats = assignmentStatsMap[classId] || { assignmentCount: 0, activeAssignments: 0 };
+      const stats = assignmentStatsMap[classId] || { 
+        totalAssignments: 0, 
+        activeAssignments: 0,
+        completionRate: 0
+      };
       
       return {
         ...cls,
         totalStudents: studentCountMap[classId] || 0,
         activeAssignments: stats.activeAssignments,
-        totalAssignments: stats.assignmentCount
+        totalAssignments: stats.totalAssignments,
+        completionRate: stats.completionRate
       };
     });
+
+    console.log('Teacher classes with stats:', classesWithStats);
 
     res.json({
       success: true,

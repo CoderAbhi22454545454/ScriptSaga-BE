@@ -33,24 +33,31 @@ const TeacherDashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       // Get assigned classes to calculate all stats
+      console.log('Fetching dashboard stats for user ID:', user._id);
       const response = await api.get(`/class/teacher/${user._id}/classes`);
+      
+      console.log('API Response:', response.data);
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch classes');
       }
 
       const classes = response.data.classes || [];
+      console.log('Classes received:', classes);
       
       // Calculate stats from classes data
       const totalStudents = classes.reduce((sum, cls) => {
+        console.log(`Class ${cls.yearOfStudy}-${cls.branch}-${cls.division}: ${cls.totalStudents} students`);
         return sum + (cls.totalStudents || 0);
       }, 0);
 
       const totalAssignments = classes.reduce((sum, cls) => {
+        console.log(`Class ${cls.yearOfStudy}-${cls.branch}-${cls.division}: ${cls.totalAssignments} assignments`);
         return sum + (cls.totalAssignments || 0);
       }, 0);
 
       const activeAssignments = classes.reduce((sum, cls) => {
+        console.log(`Class ${cls.yearOfStudy}-${cls.branch}-${cls.division}: ${cls.activeAssignments} active assignments`);
         return sum + (cls.activeAssignments || 0);
       }, 0);
 
@@ -60,13 +67,16 @@ const TeacherDashboard = () => {
       }, 0);
       const averageCompletionRate = classes.length > 0 ? Math.round(totalCompletionRate / classes.length) : 0;
 
-      setStats({
+      const calculatedStats = {
         totalStudents,
         totalAssignments,
         upcomingAssignments: activeAssignments, // Using activeAssignments as upcoming
         recentNotifications: [], // We'll handle notifications separately if needed
         averageCompletionRate
-      });
+      };
+      
+      console.log('Calculated stats:', calculatedStats);
+      setStats(calculatedStats);
     } catch (error) {
       console.error('Error fetching stats:', error);
       toast.error('Failed to fetch dashboard statistics');
