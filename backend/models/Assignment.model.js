@@ -11,6 +11,7 @@ const assignmentSchema = new mongoose.Schema({
   studentRepos: [{
     studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     submitted: { type: Boolean, default: false },
+    repoUrl: { type: String, default: '' },
     submissionDate: Date
   }],
 }, { timestamps: true });

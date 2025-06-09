@@ -9,7 +9,8 @@ import {
   deleteAssignment,
   getStudentAssignments,
   submitAssignment,
-  getAllAssignments
+  getAllAssignments,
+  fixExistingAssignments
 } from '../controllers/assignmentController.js';
 
 const router = express.Router();
@@ -18,6 +19,7 @@ const router = express.Router();
 router.post('/create', createAssignment);
 router.post('/submit', submitAssignment);
 router.get('/all', getAllAssignments);
+router.get('/fix-existing', fixExistingAssignments);
 router.get('/student/:studentId', getStudentAssignments);
 router.get('/assignment/:id', getAssignment);
 

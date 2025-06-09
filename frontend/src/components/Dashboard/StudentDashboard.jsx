@@ -1115,9 +1115,9 @@ const StudentDashboard = () => {
       // Get the solution URL from state
       const urlToSubmit = solutionUrl || solutionUrls[assignmentId];
       
-      // Validate URL
-      if (!urlToSubmit || !urlToSubmit.match(/^https?:\/\/github\.com\/[a-zA-Z0-9-]+\/[a-zA-Z0-9-_]+\/?$/)) {
-        toast.error("Please enter a valid GitHub repository URL");
+      // Validate that a URL is provided
+      if (!urlToSubmit || urlToSubmit.trim() === '') {
+        toast.error("Please enter a solution URL");
         return;
       }
 
@@ -1446,7 +1446,7 @@ const StudentDashboard = () => {
                               <div className="space-y-2">
                                 <Input
                                   type="text"
-                                  placeholder="https://github.com/yourusername/your-solution-repo"
+                                  placeholder="Enter your solution repository URL or link"
                                   value={solutionUrls[assignment._id] || ""}
                                   onChange={(e) => handleUpdateSolutionUrl(assignment._id, e.target.value)}
                                   className="w-full text-sm"

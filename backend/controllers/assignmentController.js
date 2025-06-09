@@ -363,3 +363,43 @@ export const getAllAssignments = async (req, res) => {
     });
   }
 };
+
+// Utility function to fix existing assignments that don't have repoUrl field
+export const fixExistingAssignments = async (req, res) => {
+  try {
+    console.log('Starting to fix existing assignments...');
+    
+    const assignments = await Assignment.find({});
+    let fixedCount = 0;
+    
+    for (const assignment of assignments) {
+      let needsUpdate = false;
+      
+      // Check if any studentRepo is missing the repoUrl field
+      for (let i = 0; i < assignment.studentRepos.length; i++) {
+        if (!assignment.studentRepos[i].hasOwnProperty('repoUrl')) {
+          assignment.studentRepos[i].repoUrl = '';
+          needsUpdate = true;
+        }
+      }
+      
+      if (needsUpdate) {
+        await assignment.save();
+        fixedCount++;
+        console.log(`Fixed assignment: ${assignment.title}`);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Fixed ${fixedCount} assignments`,
+      fixedCount
+    });
+  } catch (error) {
+    console.error('Error fixing assignments:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
