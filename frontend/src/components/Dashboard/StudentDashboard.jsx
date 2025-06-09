@@ -1030,7 +1030,7 @@ const StudentDashboard = () => {
 
       if (!notificationsData) {
         try {
-          const notificationsResponse = await api.get(`/notifications/${user._id}`);
+          const notificationsResponse = await api.get(`/user/notifications/${user._id}`);
           notificationsData = notificationsResponse.data.notifications || [];
           setCachedData(notificationsCacheKey, notificationsData);
         } catch (error) {
@@ -1411,14 +1411,7 @@ const StudentDashboard = () => {
                   <p className="text-gray-500">No assignments found.</p>
                 </div>
               )}
-              <div className="flex justify-center mt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/student/assignments')}
-                >
-                  View All Assignments
-                </Button>
-              </div>
+         
             </CardContent>
           </Card>
 
@@ -1438,10 +1431,10 @@ const StudentDashboard = () => {
               ) : (
                 <StudentNotifications 
                   notifications={notifications.map(notification => {
-                    // Get teacher name safely
+                    // Get teacher name safely from the populated teacher object
                     const teacherName = notification.teacher 
                       ? `${notification.teacher.firstName || ''} ${notification.teacher.lastName || ''}`.trim() || 'Teacher'
-                      : notification.teacherName || 'Teacher';
+                      : 'Teacher';
 
                     // Get class name safely
                     const className = notification.class?.name 

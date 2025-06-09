@@ -14,7 +14,7 @@ import {
 
 const router = express.Router();
 
-router.post('/create', authMiddelware, createAssignment);
+router.post('/create',  createAssignment);
 router.get('/assignment/:id', getAssignment);
 router.get('/:classId', getClassAssignments);
 router.put('/:id', updateAssignment);

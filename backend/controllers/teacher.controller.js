@@ -77,29 +77,46 @@ export const createTeacher = async (req, res) => {
 
 export const addTeacherFeedback = async (req, res) => {
   try {
-    const { studentId, message } = req.body;
-    const teacherId = req.user._id;
+    const { studentId, message, teacherId } = req.body;
+
+    console.log('Received feedback request:', { studentId, message, teacherId });
+
+    if (!studentId || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student ID and message are required'
+      });
+    }
 
     const student = await User.findById(studentId);
     if (!student) {
+      console.log('Student not found:', studentId);
       return res.status(404).json({
         success: false,
         message: 'Student not found'
       });
     }
 
-    student.notifications.push({
-      message,
-      from: teacherId
-    });
+    console.log('Found student:', student.firstName, student.lastName);
 
+    const notification = {
+      message,
+      from: teacherId || null, // Allow teacherId to be optional
+      createdAt: new Date(),
+      read: false
+    };
+
+    student.notifications.push(notification);
     await student.save();
+
+    console.log('Notification added successfully');
 
     res.status(200).json({
       success: true,
       message: 'Feedback sent successfully'
     });
   } catch (error) {
+    console.error('Error in addTeacherFeedback:', error);
     res.status(500).json({
       success: false,
       message: 'Error sending feedback',

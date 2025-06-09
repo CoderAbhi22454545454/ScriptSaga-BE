@@ -843,81 +843,105 @@ export const resetPassword = async (req, res) => {
 };
 
 export const updateUserGithubId = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { githubID } = req.body;
+  try {
+    const { userId } = req.params;
+    const { githubID } = req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({
-                message: 'Invalid user ID format',
-                success: false
-            });
-        }
-
-        if (!githubID || typeof githubID !== 'string') {
-            return res.status(400).json({
-                message: 'GitHub ID is required and must be a string',
-                success: false
-            });
-        }
-
-        // Validate GitHub username format
-        const githubUsernameRegex = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
-        if (!githubUsernameRegex.test(githubID)) {
-            return res.status(400).json({
-                message: 'Invalid GitHub username format',
-                success: false
-            });
-        }
-
-        // Check if GitHub user exists
-        try {
-            const response = await githubApi.get(`/users/${githubID}`);
-            if (response.status !== 200) {
-                return res.status(404).json({
-                    message: 'GitHub user not found',
-                    success: false
-                });
-            }
-        } catch (error) {
-            if (error.response?.status === 404) {
-                return res.status(404).json({
-                    message: 'GitHub user not found',
-                    success: false
-                });
-            }
-            throw error;
-        }
-
-        // Update user's GitHub ID
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            { githubID },
-            { new: true }
-        );
-
-        if (!updatedUser) {
-            return res.status(404).json({
-                message: 'User not found',
-                success: false
-            });
-        }
-
-        // Clear any existing GitHub data for this user
-        await GithubData.deleteMany({ userId });
-
-        return res.status(200).json({
-            message: 'GitHub ID updated successfully',
-            success: true,
-            user: updatedUser
-        });
-    } catch (error) {
-        console.error('Error updating GitHub ID:', error);
-        res.status(500).json({
-            message: 'Error updating GitHub ID',
-            success: false,
-            error: error.message
-        });
+    if (!githubID) {
+      return res.status(400).json({
+        success: false,
+        message: 'GitHub ID is required'
+      });
     }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { githubID },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'GitHub ID updated successfully',
+      user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating GitHub ID',
+      error: error.message
+    });
+  }
+};
+
+export const getUserNotifications = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log('Fetching notifications for user:', userId);
+
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    const user = await User.findById(userId)
+      .select('notifications')
+      .populate({
+        path: 'notifications.from',
+        select: 'firstName lastName email role'
+      });
+
+    if (!user) {
+      console.log('User not found:', userId);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    console.log('Found user with notifications:', user.notifications.length);
+    console.log('Sample notification:', user.notifications[0]);
+
+    // Format notifications for frontend
+    const formattedNotifications = user.notifications.map(notification => ({
+      _id: notification._id,
+      message: notification.message,
+      createdAt: notification.createdAt,
+      read: notification.read,
+      teacher: notification.from ? {
+        _id: notification.from._id,
+        firstName: notification.from.firstName,
+        lastName: notification.from.lastName,
+        email: notification.from.email
+      } : null,
+      type: 'Teacher Feedback'
+    }));
+
+    console.log('Formatted notifications:', formattedNotifications.length);
+    console.log('Sample formatted notification:', formattedNotifications[0]);
+
+    res.json({
+      success: true,
+      notifications: formattedNotifications
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching notifications',
+      error: error.message
+    });
+  }
 };
 
